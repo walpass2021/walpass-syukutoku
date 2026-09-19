@@ -1,0 +1,2792 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>WALPASS</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        :root {
+            --primary-color: #fca311;
+            /* パンっぽい色 */
+            --accent-color: #14213d;
+            --bg-color: #e5e5e5;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            color: #333;
+            padding-bottom: 80px;
+            /* 固定ボタンの分 */
+        }
+
+        header {
+            background: linear-gradient(135deg, #00bfff 0%, #00bfff 45%, #ffffff 100%);
+            color: #0f2942;
+            padding: 12px 15px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0, 191, 255, 0.25);
+        }
+
+        .header-logo {
+            margin-bottom: 5px;
+        }
+
+        .header-logo img {
+            height: 64px;
+            /* ヘッダー用に高さを制限して表示 (少し大きく調整) */
+            width: auto;
+            object-fit: contain;
+            vertical-align: middle;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: inherit; /* 親要素（header）の色を引き継ぐ */
+        }
+
+        .container {
+            padding: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* ユーザー選択エリア */
+        .user-select-area {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .user-select-area label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            /* iOS zoom防止 */
+            box-sizing: border-box;
+        }
+
+        /* サイクル選択エリア */
+        .cycle-select-area {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            display: none;
+            /* ユーザーが選ばれるまで隠す */
+        }
+
+        .cycle-select-area label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .cycle-desc {
+            font-size: 0.85rem;
+            color: #777;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .cycle-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .cycle-item {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            color: #555;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .cycle-item.selected {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 5px rgba(252, 163, 17, 0.4);
+        }
+
+        .cycle-item .cycle-order {
+            display: none;
+            background: #fff;
+            color: var(--primary-color);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            text-align: center;
+            line-height: 18px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-right: 6px;
+        }
+
+        .cycle-item.selected .cycle-order {
+            display: inline-block;
+        }
+
+        .apply-cycle-btn {
+            background-color: var(--accent-color);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: opacity 0.2s;
+        }
+
+        .apply-cycle-btn:active {
+            opacity: 0.8;
+        }
+
+        /* カレンダー（リスト形式） */
+        .calendar-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .day-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .day-header {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .day-header.weekend-sat {
+            color: #4a90e2;
+        }
+
+        .day-header.weekend-sun {
+            color: #e63946;
+        }
+
+        .product-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .product-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .product-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            padding-right: 10px;
+        }
+
+        .product-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .product-name {
+            font-size: 0.95rem;
+            line-height: 1.3;
+        }
+
+        .product-category {
+            font-size: 0.75rem;
+            padding: 2px 10px;
+            border-radius: 12px;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        .cat-pre {
+            background-color: #e6f7eb;
+            color: #4caf50;
+            border: 1px solid #c8e6c9;
+        }
+
+        .cat-post {
+            background-color: #fff3e0;
+            color: #ff9800;
+            border: 1px solid #ffe0b2;
+        }
+
+        .product-price {
+            font-size: 0.8rem;
+            color: #888;
+            margin-left: 5px;
+        }
+
+        .stepper {
+            display: flex;
+            align-items: center;
+            background: #f0f0f0;
+            border-radius: 20px;
+            padding: 2px;
+        }
+
+        .stepper button {
+            background: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            font-size: 1.2rem;
+            color: var(--accent-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+
+        .stepper button:active {
+            background-color: #ddd;
+            border-radius: 50%;
+        }
+
+        .stepper input {
+            width: 40px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #333;
+            pointer-events: none;
+            /* 入力はボタンで行う */
+        }
+
+        /* フッター（注文ボタン） */
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #fff;
+            padding: 15px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .submit-btn {
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            max-width: 570px;
+            /* container width - padding */
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 200;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ===== カスタムモーダル（アラート・確認用） ===== */
+        .custom-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 300;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .custom-modal {
+            background: #fff;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .custom-modal-body {
+            padding: 20px;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #333;
+            white-space: pre-wrap;
+            /* 改行を反映 */
+            text-align: left;
+            overflow-y: auto;
+        }
+
+        .custom-modal-footer {
+            display: flex;
+            border-top: 1px solid #eee;
+        }
+
+        .custom-modal-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--primary-color);
+            transition: background 0.2s;
+        }
+
+        .custom-modal-btn:active {
+            background: #f5f5f5;
+        }
+
+        .custom-modal-btn.cancel {
+            color: #888;
+            border-right: 1px solid #eee;
+        }
+
+        /* ===== TOP BANNER ===== */
+        .top-banner-container {
+            padding: 15px 15px 0 15px;
+            text-align: center;
+            background-color: var(--bg-color);
+        }
+
+        .top-banner-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #2E6BE6 0%, #4A8AF4 100%);
+            color: #fff;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+            max-width: 600px;
+            width: 100%;
+            box-sizing: border-box;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        .top-banner-link:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        @media(max-width:768px) {
+            .top-banner-link {
+                font-size: 13px;
+                padding: 12px 16px;
+            }
+        }
+
+        /* 履歴画面のスタイル */
+        .history-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .history-month {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee;
+            font-size: 0.9rem;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-date {
+            color: #888;
+            font-size: 0.8rem;
+            width: 50px;
+        }
+
+        .history-name {
+            flex: 1;
+            padding: 0 10px;
+        }
+
+        .history-qty {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .history-total-row {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 2px solid #eee;
+            text-align: right;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .history-total-amount {
+            color: #e63946;
+            font-size: 1.2rem;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header id="mainHeader" style="display: none;">
+        <div class="header-logo" style="display: none;">
+            <img src="" alt="チームエンブレム">
+        </div>
+        <h1>アスリート向け補食パン注文</h1>
+    </header>
+
+    <!-- ========== TOP BANNER ========== -->
+    <div id="topBanner" class="top-banner-container" style="display: none;">
+        <a href="https://walpass.jp/?mode=f9" class="top-banner-link" target="_blank" rel="noopener noreferrer">
+            アスリート向け補食パンについての詳細はこちら
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="margin-left:4px; flex-shrink:0;">
+                <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6z" />
+            </svg>
+        </a>
+    </div>
+
+    <div class="container" style="display: none;">
+        <!-- ユーザー選択エリア -->
+        <div class="user-select-area">
+            <!-- STEP 1: カテゴリー選択 -->
+            <label for="categorySelect" style="color:var(--primary-color);">STEP 1. カテゴリー</label>
+            <select id="categorySelect">
+                <option value="" disabled selected>Please wait...</option>
+            </select>
+
+            <div style="margin-bottom: 20px;"></div>
+
+            <!-- STEP 2: ユーザー選択 -->
+            <label for="userSelect">STEP 2. お名前</label>
+            <select id="userSelect" disabled style="background-color: #f9f9f9;">
+                <option value="" disabled selected>上のカテゴリーを選択してください</option>
+            </select>
+        </div>
+
+        <!-- サイクル自動設定エリア -->
+        <div id="cycleSelectArea" class="cycle-select-area">
+            <label style="color:#1DB446;">サイクルを自動作成（任意）</label>
+            <div class="cycle-desc">
+                順番に食べたいパンをタップしてください。選択した順番で全ての日程に自動で1個ずつ割り当てます。<br>
+                ※「追加」を選ぶことで、別のサイクルを複数回重ねて適用することも可能です。
+            </div>
+            <div id="cycleItemsContainer" class="cycle-items">
+                <!-- JSで商品タグを生成 -->
+            </div>
+            <button type="button" class="apply-cycle-btn" onclick="applyCycle()">このサイクルで一括入力する</button>
+        </div>
+
+        <!-- メインのカレンダー描画エリア -->
+        <div id="calendarContainer" class="calendar-list">
+            <div style="text-align:center; padding: 20px;">Please wait...</div>
+        </div>
+    </div>
+
+    <footer style="display: none;">
+        <button type="button" class="submit-btn" onclick="submitOrder()">注文を確定する</button>
+        <div id="termsContainer" style="margin-top: 8px; font-size: 0.8rem; color: #666; display: none;">
+            ※注文を確定すると<a id="termsLink" href="#" target="_blank" style="color: var(--primary-color); text-decoration: underline;">利用規約</a>に同意したものとみなされます。
+        </div>
+    </footer>
+
+    <div id="loading" class="loading-overlay" style="display: flex;">
+        <div class="spinner"></div>
+        <div id="loadingText">Please wait...</div>
+    </div>
+
+    <!-- カスタムモーダル要素 -->
+    <div id="customModal" class="custom-modal-overlay">
+        <div class="custom-modal">
+            <div id="customModalText" class="custom-modal-body">ここにメッセージが入ります</div>
+            <div class="custom-modal-footer" id="customModalFooter">
+                <!-- ボタンはJSで動的に生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 構文エラーや致命的な解析エラーを「処理中...」のまま隠蔽させないための事前トラップ
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            var loadTxt = document.getElementById('loadingText');
+            if (loadTxt) {
+                loadTxt.innerText = "【構文エラー】\n" + msg + "\n行番号: " + lineNo;
+                loadTxt.style.color = "red";
+                loadTxt.style.fontWeight = "bold";
+                loadTxt.style.fontSize = "12px";
+            }
+            return false;
+        };
+        window.onunhandledrejection = function (event) {
+            var loadTxt = document.getElementById('loadingText');
+            if (loadTxt) {
+                loadTxt.innerText = "【通信エラー】\n" + (event.reason ? event.reason.message || event.reason : "不明");
+                loadTxt.style.color = "red";
+                loadTxt.style.fontWeight = "bold";
+                loadTxt.style.fontSize = "12px";
+            }
+        };
+    </script>
+
+    <script>
+        // ==========================================
+        // V2.0設定: GASのWebアプリURLを動的に自動解決
+        // ==========================================
+        var GAS_API_URL = (typeof _gasInjectedApiUrl !== 'undefined' && _gasInjectedApiUrl)
+            ? _gasInjectedApiUrl
+            : 'https://script.google.com/macros/s/AKfycbxfzj5x03xlk7hp8UATNmrryPCwtm4WVxB_8vftPnjHrmCQSbu1TFAFAGbEM20M6pMj/exec';
+
+        // ==========================================
+        // JSONP通信ヘルパー (CORS回避用)
+        // ==========================================
+        var _jsonpCounter = 0;
+        function gasJsonpFetch(params) {
+            return new Promise(function (resolve, reject) {
+                var callbackName = '_gasJsonpCb_' + (++_jsonpCounter);
+                var url = GAS_API_URL + '?' + params + '&callback=' + callbackName;
+
+                window[callbackName] = function (data) {
+                    resolve(data);
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                };
+
+                var script = document.createElement('script');
+                script.src = url;
+                script.onerror = function () {
+                    reject(new Error('JSONP通信に失敗しました'));
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        var PRODUCTS = [];
+        var USERS = [];
+        var RULES = []; // 配送ルール
+        var cycleSelection = []; // { id: productId, name: productName } の配列
+        var lineUserId = null; // LIFFから取得する LINE ID
+        var urlTeamCode = null; // URLから取得するチーム記号
+        var urlMode = null; // 画面モード（通常 or history）
+
+        // 初期化
+        window.onload = function () {
+            try {
+                const loadingText = document.getElementById('loadingText');
+                loadingText.innerText = "初期化中...";
+
+                // 1. パラメータ取得（3段構え）
+                // 優先順位: GAS注入値 → LIFF state → localStorage
+
+                // (A) GAS側からappendで注入されたグローバル変数を読む
+                urlTeamCode = (typeof _gasInjectedTeam !== "undefined" && _gasInjectedTeam) ? _gasInjectedTeam : "";
+                urlMode = (typeof _gasInjectedMode !== "undefined" && _gasInjectedMode) ? _gasInjectedMode : "";
+
+                // (B) LIFF stateからの上書き（リッチメニュー経由時はこちらにパラメータが入る）
+                try {
+                    var rawState = "";
+                    if (typeof liff !== "undefined" && liff.state) {
+                        rawState = liff.state;
+                    }
+                    var stateParams = new URLSearchParams(rawState.replace(/^[^?]*\?/, ''));
+                    if (stateParams.has('team')) urlTeamCode = stateParams.get('team');
+                    if (stateParams.has('mode')) urlMode = stateParams.get('mode');
+                } catch (stateErr) {
+                    // liff.stateの解析に失敗しても継続
+                }
+
+                // (C) URLの直接パラメータも念のためチェック
+                var params = new URLSearchParams(window.location.search);
+                if (params.has('team')) urlTeamCode = params.get('team');
+                if (params.has('mode')) urlMode = params.get('mode');
+
+                // 2. localStorageからの復元（チームコードのみ、modeはURL優先）
+                if (urlTeamCode && urlTeamCode !== "null" && urlTeamCode !== "") {
+                    localStorage.setItem('walpass_team_code', urlTeamCode);
+                } else {
+                    urlTeamCode = localStorage.getItem('walpass_team_code');
+                }
+
+                // 'null' 文字列などの正規化
+                if (urlTeamCode === 'null' || urlTeamCode === '' || urlTeamCode === 'undefined') urlTeamCode = null;
+                if (urlMode === 'null' || urlMode === '' || urlMode === 'undefined') urlMode = null;
+
+                // イベントリスナーの登録
+                document.getElementById('categorySelect').addEventListener('change', function () {
+                    const cat = this.value;
+                    renderUserSelect(cat);
+                    document.getElementById('calendarContainer').innerHTML = '<div style="text-align:center; padding:20px;">お名前を選択してください</div>';
+                    document.getElementById('cycleSelectArea').style.display = 'none';
+                });
+
+                document.getElementById('userSelect').addEventListener('change', function () {
+                    var bindBtn = document.getElementById('bindUserBtn');
+                    if (bindBtn) {
+                        bindBtn.disabled = !this.value;
+                        bindBtn.style.opacity = this.value ? '1' : '0.5';
+                    } else {
+                        renderCalendar();
+                        renderCycleUI();
+                    }
+                });
+
+                // ★ 爆速化チューニング：LIFFの解決を待たずに即座にデータ取得を並列開始
+                proceedToFetchData();
+
+                // LIFFの初期化（バックグラウンドで並列実行）
+                var targetLiffId = (typeof _gasInjectedLiffId !== "undefined" && _gasInjectedLiffId) ? _gasInjectedLiffId : "2009233341-VFgBMdDu";
+
+                liff.init({
+                    liffId: targetLiffId
+                }).then(function () {
+                    try {
+                        var ctx = liff.getContext();
+                        if (ctx && ctx.userId) {
+                            lineUserId = ctx.userId;
+                        }
+                    } catch (e) { }
+
+                    try {
+                        if (!lineUserId && liff.getDecodedIDToken) {
+                            var decoded = liff.getDecodedIDToken();
+                            if (decoded && decoded.sub) {
+                                lineUserId = decoded.sub;
+                            }
+                        }
+                    } catch (e) { }
+
+                    if (!lineUserId && liff.isLoggedIn()) {
+                        liff.getProfile().then(function (profile) {
+                            if (profile && profile.userId) {
+                                lineUserId = profile.userId;
+                            }
+                        }).catch(function () {});
+                    }
+                }).catch(function (err) {
+                    console.warn("LIFF init Error (proceeding anyway):", err);
+                });
+
+            } catch (fatalError) {
+                var loadingText = document.getElementById('loadingText');
+                if (loadingText) {
+                    loadingText.innerText = "Error: " + fatalError.message;
+                    loadingText.style.color = 'red';
+                }
+            }
+        };
+
+        function proceedToFetchData() {
+            // liff.init() 完了後にliff.stateを再解析（LIFF経由の場合、ここでパラメータが取得できる）
+            try {
+                if (typeof liff !== "undefined" && liff.state) {
+                    var stateStr = liff.state;
+                    // liff.state は "?team=KV&mode=history" や "team=KV&mode=history" の形式
+                    var sp = new URLSearchParams(stateStr.replace(/^[^?]*\?/, ''));
+                    if (sp.has('team') && sp.get('team')) {
+                        urlTeamCode = sp.get('team');
+                        localStorage.setItem('walpass_team_code', urlTeamCode);
+                    }
+                    if (sp.has('mode') && sp.get('mode')) {
+                        urlMode = sp.get('mode');
+                    }
+                }
+            } catch (e) {
+                // 解析失敗時は既存の値を維持
+            }
+
+            // urlTeamCodeが文字列の 'null' や空文字の場合は完全に null に正規化する
+            if (urlTeamCode === 'null' || urlTeamCode === '') {
+                urlTeamCode = null;
+            }
+            if (urlMode === 'null' || urlMode === '') {
+                urlMode = null;
+            }
+
+
+            var loadingText = document.getElementById('loadingText');
+            if (loadingText) {
+                loadingText.innerText = "Please wait...";
+            }
+            fetchInitialData();
+        }
+
+        function applyTeamSettings(settings) {
+            var header = document.getElementById('mainHeader');
+            var topBanner = document.getElementById('topBanner');
+
+            if (settings) {
+                // ロゴ画像の書き換え
+                if (settings.logoUrl) {
+                    var logoDiv = document.querySelector('.header-logo');
+                    var logoImg = logoDiv ? logoDiv.querySelector('img') : null;
+                    if (logoDiv && logoImg) {
+                        var url = settings.logoUrl;
+                        if (url.indexOf('drive.google.com') !== -1 && url.indexOf('thumbnail?') === -1) {
+                            var match = url.match(/(?:file\/d\/|id=|\/d\/|open\?id=)([a-zA-Z0-9_-]{20,})/);
+                            if (match && match[1]) {
+                                url = 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w500';
+                            }
+                        }
+                        logoImg.src = url;
+                        logoDiv.style.display = 'block';
+                    }
+                }
+
+                // ヘッダー背景（画像 or グラデーション）の適用
+                var bgImgUrl = settings.bgImageUrl || "";
+                
+                // テーマカラー列に画像URL（httpまたはdrive.google）が入っている場合も自動認識
+                if (!bgImgUrl && settings.themeColor && (settings.themeColor.indexOf('http') === 0 || settings.themeColor.indexOf('drive.google.com') !== -1)) {
+                    bgImgUrl = settings.themeColor;
+                }
+
+                // GoogleドライブURLの変換
+                if (bgImgUrl && bgImgUrl.indexOf('drive.google.com') !== -1) {
+                    var bgMatch = bgImgUrl.match(/(?:file\/d\/|id=|\/d\/|open\?id=)([a-zA-Z0-9_-]{20,})/);
+                    if (bgMatch && bgMatch[1]) {
+                        bgImgUrl = 'https://drive.google.com/thumbnail?id=' + bgMatch[1] + '&sz=w800';
+                    }
+                }
+
+                if (bgImgUrl && header) {
+                    header.style.background = "linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.45)), url('" + bgImgUrl + "') center/cover no-repeat";
+                    header.style.color = settings.subtitleColor || '#ffffff';
+                    var titleElem = header.querySelector('h1');
+                    if (titleElem) {
+                        titleElem.style.color = settings.subtitleColor || '#ffffff';
+                        titleElem.style.textShadow = '0 2px 6px rgba(0,0,0,0.8)';
+                    }
+                } else {
+                    var defaultHeaderGradient = 'linear-gradient(135deg, #00bfff 0%, #00bfff 45%, #ffffff 100%)';
+                    var headerBg = defaultHeaderGradient;
+                    var headerTextColor = '#0f2942';
+
+                    if (settings.themeColor) {
+                        var tColor = String(settings.themeColor).trim();
+                        if (tColor.indexOf('gradient') !== -1) {
+                            headerBg = tColor;
+                            headerTextColor = settings.subtitleColor || '#ffffff';
+                        } else if (tColor.indexOf(',') !== -1) {
+                            var parts = tColor.split(',').map(function(s) { return s.trim(); });
+                            headerBg = 'linear-gradient(135deg, ' + parts[0] + ' 0%, ' + parts[0] + ' 45%, ' + parts[1] + ' 100%)';
+                            headerTextColor = settings.subtitleColor || '#0f2942';
+                        } else if (tColor.toLowerCase() === '#00bfff' || tColor.toLowerCase() === '00bfff') {
+                            headerBg = defaultHeaderGradient;
+                            headerTextColor = '#0f2942';
+                        }
+                    }
+
+                    if (header) {
+                        header.style.background = headerBg;
+                        header.style.color = headerTextColor;
+                        var titleElem = header.querySelector('h1');
+                        if (titleElem) titleElem.style.color = headerTextColor;
+                    }
+                }
+            }
+
+            // 設定の適用完了（または設定なしのデフォルト）後に表示する
+            if (header) header.style.display = 'block';
+            if (topBanner) topBanner.style.display = 'block';
+        }
+
+        // 背景色に対して見やすい色（黒か白）を返す関数 (明度計算)
+        function getContrastYIQ(hexcolor){
+            if (!hexcolor || hexcolor === 'transparent') return '#333';
+            hexcolor = hexcolor.replace("#", "");
+            if (hexcolor.length === 3) {
+                hexcolor = hexcolor[0] + hexcolor[0] + hexcolor[1] + hexcolor[1] + hexcolor[2] + hexcolor[2];
+            }
+            var r = parseInt(hexcolor.substr(0,2),16);
+            var g = parseInt(hexcolor.substr(2,2),16);
+            var b = parseInt(hexcolor.substr(4,2),16);
+            // YIQ明度計算（128以上なら明るい、それ以下なら暗いと判定）
+            var yiq = ((r*299)+(g*587)+(b*114))/1000;
+            return (yiq >= 128) ? '#333' : '#fff';
+        }
+
+        function fetchInitialData() {
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('loadingText').innerText = "データ読み込み中...";
+
+            // タイムアウト設定(35秒: GASコールドスタート対策)
+            var isTimeout = false;
+            var fallbackTimer = setTimeout(function () {
+                isTimeout = true;
+                onFailure(new Error("サーバーからの応答がタイムアウトしました。通信環境を確認するか、再度読み込んでください。"));
+            }, 35000);
+
+            try {
+                var params = 'api=getInitialData';
+                if (lineUserId) params += '&lineId=' + encodeURIComponent(lineUserId);
+                if (urlTeamCode) params += '&teamCode=' + encodeURIComponent(urlTeamCode);
+
+                gasJsonpFetch(params)
+                    .then(function (data) {
+                        if (isTimeout) return;
+                        clearTimeout(fallbackTimer);
+                        onDataLoaded(data);
+                    })
+                    .catch(function (err) {
+                        if (isTimeout) return;
+                        clearTimeout(fallbackTimer);
+                        onFailure(err);
+                    });
+            } catch (err) {
+                if (!isTimeout) {
+                    clearTimeout(fallbackTimer);
+                    onFailure(err);
+                }
+            }
+        }
+
+        function onDataLoaded(data) {
+            console.log('Data loaded. isBound:', data.isBound, 'lineUserId:', lineUserId, 'urlMode:', urlMode, 'urlTeamCode:', urlTeamCode);
+            PRODUCTS = data.products;
+            USERS = data.users;
+            RULES = data.rules;
+            window._isStripeTestMode = data.isStripeTestMode || false;
+            window._cachedAvailableTeams = data.availableTeams || [];
+            window._cachedTeamPoints = data.teamPoints || 0;
+
+            // チーム設定を即座に適用（待たずにバックグラウンドで画像読み込み）
+            if (data.teamSettings) {
+                applyTeamSettings(data.teamSettings);
+            }
+
+            // 画像の読み込み完了を待たずに即座に注文画面を表示（超高速化）
+            finalizeRender(data);
+        }
+
+        function finalizeRender(data) {
+            // マスターからのチーム設定をグローバルキャッシュして未登録ルート等でも即時参照可能にする
+            window._cachedTeamSettings = data ? data.teamSettings : null;
+            
+            // メインコンテンツ（ヘッダー等は applyTeamSettings で表示される）
+            
+            // === Stripe決済基盤統合：お支払い設定中継ぎモード ===
+            if (urlMode === 'payment_setup') {
+                document.getElementById('loadingText').innerText = "安全な決済システムへ接続しています...";
+                var setupParams = 'api=getStripeSetupUrl';
+                if (lineUserId) setupParams += '&lineId=' + encodeURIComponent(lineUserId);
+                if (urlTeamCode) setupParams += '&teamCode=' + encodeURIComponent(urlTeamCode);
+
+                gasJsonpFetch(setupParams)
+                    .then(function(res) {
+                        if (res && res.success && res.url) {
+                            window.location.href = res.url;
+                        } else {
+                            alert("接続エラー: " + (res ? res.message : "URLを取得できませんでした"));
+                            document.getElementById('loading').style.display = 'none';
+                        }
+                    })
+                    .catch(function(err) {
+                        alert("通信エラー: " + err.message);
+                        document.getElementById('loading').style.display = 'none';
+                    });
+                return;
+            }
+
+            // === Stripe決済基盤統合：登録成功後の消込サンキュー画面 ===
+            if (urlMode === 'payment_success') {
+                var container = document.querySelector('.container');
+                var header = document.getElementById('mainHeader');
+                if (container) container.style.display = 'none';
+                if (header) header.style.display = 'none';
+                document.getElementById('loading').style.display = 'none';
+
+                document.body.innerHTML = '<div style="position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999; padding: 20px; text-align:center; font-family: sans-serif;">' +
+                    '<div style="width: 80px; height: 80px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(0,0,0,0.1); margin-bottom: 25px;">' +
+                    '<span style="font-size: 40px; color: #4CAF50;">✓</span>' +
+                    '</div>' +
+                    '<h2 style="color: #333; margin-bottom: 15px; font-size: 24px; font-weight:bold;">お支払いカードの登録完了</h2>' +
+                    '<p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom:20px; max-width: 320px;">クレジットカードの登録が正常に完了し、自動引き落としの準備が整いました。</p>' +
+                    '<button onclick="try{liff.closeWindow();}catch(e){window.close();}" style="padding:14px 32px; background:#4CAF50; color:white; border:none; border-radius:25px; font-weight:bold; font-size:16px; box-shadow:0 4px 15px rgba(76,175,80,0.3); cursor:pointer; margin-bottom:15px;">LINEへ戻る</button>' +
+                    '<p style="font-size: 12px; color: #888; line-height: 1.4;">※ ボタンが反応しない場合は、お手数ですが<br>画面の「×」または「閉じる」ボタンで画面を閉じてください。</p>' +
+                    '</div>';
+                return;
+            }
+
+            // 登録モードの場合は自動ログインをバイパスして、強制的に登録UIを表示する
+            if (urlMode === 'register') {
+                var userSelectArea = document.querySelector('.user-select-area');
+                userSelectArea.style.display = 'block';
+                document.querySelector('.container').style.display = 'block';
+                setupUserRegistrationUI(data);
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+
+            // 1. 既に紐付け済みの場合はカレンダーを表示
+            if (data.isBound && USERS.length > 0) {
+                var boundUser = USERS[0];
+
+                try {
+                    localStorage.setItem('walpass_bound_user', JSON.stringify({
+                        userId: boundUser.UserID,
+                        userName: data.boundUserName,
+                        deliveryType: boundUser.DeliveryType
+                    }));
+                } catch (e) { }
+
+                showBoundUserView(data.boundUserName, boundUser, data.teamSettings);
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+
+            // 1.5. LINE IDでは紐付けされなかったが、localStorageに保存済みの場合
+            if (!data.isBound && USERS.length > 0) {
+                try {
+                    var savedUser = JSON.parse(localStorage.getItem('walpass_bound_user') || 'null');
+                    if (savedUser && savedUser.userId) {
+                        for (var si = 0; si < USERS.length; si++) {
+                            if (String(USERS[si].UserID) === String(savedUser.userId)) {
+                                showBoundUserView(savedUser.userName, USERS[si], data.teamSettings);
+                                document.getElementById('loading').style.display = 'none';
+                                return;
+                            }
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            // 2. 未紐付けの場合
+            var userSelectArea = document.querySelector('.user-select-area');
+            userSelectArea.style.display = 'block';
+            document.querySelector('.container').style.display = 'block';
+
+            setupUserRegistrationUI(data);
+            
+            // 全ての準備が整ったのでローディング画面を消去
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // ウェルカムヘッダーの描画（シンプルにお名前のみ表示）
+        function renderWelcomeHeader(userName) {
+            var existing = document.getElementById('welcomeMsg');
+            if (existing) existing.remove();
+
+            var welcomeDiv = document.createElement('div');
+            welcomeDiv.id = 'welcomeMsg';
+            welcomeDiv.style.textAlign = 'center';
+            welcomeDiv.style.padding = '15px 15px 10px';
+            welcomeDiv.style.fontSize = '18px';
+            welcomeDiv.style.fontWeight = 'bold';
+            welcomeDiv.style.color = 'var(--primary-color)';
+            welcomeDiv.innerText = 'こんにちは、' + userName + ' 選手';
+
+            var container = document.querySelector('.container');
+            container.insertBefore(welcomeDiv, container.firstChild);
+        }
+
+        // アスリートポイント進捗カードの描画（※正式決定まで非表示）
+        function renderPointCard(userObj) {
+            var ENABLE_POINT_CARD = false; // ★正式導入時に true に変更
+            if (!ENABLE_POINT_CARD) return;
+
+            var existing = document.getElementById('pointCardContainer');
+            if (existing) existing.remove();
+
+            if (!userObj) return;
+
+            var rawPoints = userObj.累計ポイント || userObj['累計ポイント'] || userObj.points || 0;
+            var points = Number(rawPoints) || 0;
+            var is25 = userObj['25pt特典付与済'] === true || String(userObj['25pt特典付与済']).trim() === 'TRUE' || String(userObj['25pt特典付与済']).trim() === '配布済';
+            var is50 = userObj['50pt特典付与済'] === true || String(userObj['50pt特典付与済']).trim() === 'TRUE' || String(userObj['50pt特典付与済']).trim() === '配布済';
+            var teamPoints = (typeof window._cachedTeamPoints !== 'undefined') ? window._cachedTeamPoints : 0;
+
+            var cardDiv = document.createElement('div');
+            cardDiv.id = 'pointCardContainer';
+            cardDiv.style.cssText = 'background: linear-gradient(135deg, #ffffff 0%, #fffcf5 100%); border: 1px solid #fed7aa; border-radius: 12px; padding: 12px 16px; margin: 0 auto 15px; box-shadow: 0 2px 8px rgba(252, 163, 17, 0.08); max-width: 570px;';
+
+            var targetMilestone = 25;
+            var targetRewardText = 'PayPay 200円';
+            var percent = 0;
+            var infoText = '';
+
+            if (is50 || points >= 50) {
+                targetMilestone = 50;
+                percent = 100;
+                infoText = '<span style="color:#16a34a; font-weight:bold;">🎉 50pt達成！PayPay 500円分 特典付与済</span>';
+            } else if (is25 || points >= 25) {
+                targetMilestone = 50;
+                targetRewardText = 'PayPay 500円';
+                var remain = Math.max(0, 50 - points);
+                percent = Math.min(100, Math.round(((points - 25) / 25) * 100));
+                infoText = '✅ 25pt獲得済！ 次の <strong>' + targetRewardText + '</strong> まで あと <strong style="color:#ea580c; font-size:15px;">' + remain + ' pt</strong>';
+            } else {
+                targetMilestone = 25;
+                targetRewardText = 'PayPay 200円';
+                var remain = Math.max(0, 25 - points);
+                percent = Math.min(100, Math.round((points / 25) * 100));
+                infoText = '次の <strong>' + targetRewardText + '</strong> まで あと <strong style="color:#ea580c; font-size:15px;">' + remain + ' pt</strong>';
+            }
+
+            var teamPointsHtml = '';
+            if (teamPoints > 0) {
+                teamPointsHtml = '<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #fed7aa; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#78350f;">' +
+                    '<span>🤝 <strong>チーム累計</strong></span>' +
+                    '<span style="font-weight:bold; color:#ea580c; font-size:13px;">' + teamPoints + ' pt</span>' +
+                    '</div>';
+            }
+
+            var html = '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+                '<div style="font-size:13px; font-weight:bold; color:#78350f;">🏅 アスリートポイント</div>' +
+                '<div style="font-size:18px; font-weight:900; color:#ea580c;"><span style="font-size:12px; font-weight:normal; color:#9a3412;">個人 </span>' + points + ' <span style="font-size:12px; font-weight:normal;">pt</span></div>' +
+                '</div>' +
+                '<div style="background:#f1f5f9; border-radius:10px; height:8px; overflow:hidden; margin-bottom:8px;">' +
+                '<div style="background:linear-gradient(90deg, #f97316 0%, #fca311 100%); width:' + percent + '%; height:100%; border-radius:10px; transition:width 0.4s ease;"></div>' +
+                '</div>' +
+                '<div style="font-size:11.5px; color:#64748b; text-align:center;">' + infoText + '</div>' +
+                teamPointsHtml;
+
+            cardDiv.innerHTML = html;
+
+            var container = document.querySelector('.container');
+            var welcome = document.getElementById('welcomeMsg');
+            if (welcome && welcome.nextSibling) {
+                container.insertBefore(cardDiv, welcome.nextSibling);
+            } else if (container) {
+                container.appendChild(cardDiv);
+            }
+        }
+
+        // 紐付け済みユーザー表示（共通処理を関数化）
+        function showBoundUserView(userName, userObj, teamSettings) {
+            document.querySelector('.container').style.display = 'block';
+            
+            // 注文不可ユーザーの判定 (「不可」という文字を含む場合のみ制限)
+            var dT = (userObj.DeliveryType || userObj.deliveryType || "").toString().trim();
+            var isRestricted = (dT && dT.indexOf('不可') !== -1);
+
+            if (isRestricted) {
+                document.querySelector('footer').style.display = 'none';
+            } else {
+                document.querySelector('footer').style.display = 'block';
+                updateTermsVisibility();
+            }
+            
+            document.querySelector('.user-select-area').style.display = 'none';
+
+            renderWelcomeHeader(userName);
+            renderPointCard(userObj);
+
+            // 制限メッセージの表示
+            if (isRestricted) {
+                if (!document.getElementById('restrictedMsg')) {
+                    var restDiv = document.createElement('div');
+                    restDiv.id = 'restrictedMsg';
+                    restDiv.style.cssText = 'background:#fff5f5; border:1px solid #feb2b2; color:#c53030; padding:15px; border-radius:12px; margin:10px 0 20px; text-align:center; font-weight:bold;';
+                    restDiv.innerHTML = 'パン注文対象外に設定されています。<br><span style="font-size:0.85rem; font-weight:normal;">まずはプランの申し込みからお願いいたします。</span>';
+                    var container = document.querySelector('.container');
+                    // ウェルカムメッセージの下に挿入
+                    var welcome = document.getElementById('welcomeMsg');
+                    if (welcome && welcome.nextSibling) {
+                        container.insertBefore(restDiv, welcome.nextSibling);
+                    } else {
+                        container.appendChild(restDiv);
+                    }
+                }
+            }
+
+            // ★ 共通のStripe案内バナー描画関数へ処理を委譲（未登録ルートと完全統合）
+            renderStripePromoBanner(userObj);
+
+            // userSelectにユーザー情報をセット（カレンダー描画に必要）
+            var userSelect = document.getElementById('userSelect');
+            if (userSelect && userObj) {
+                userSelect.innerHTML = '';
+                var opt = document.createElement('option');
+                opt.value = userObj.UserID || userObj.userId;
+                opt.textContent = userName;
+                opt.dataset.deliveryType = userObj.DeliveryType || userObj.deliveryType || userObj['プラン'] || userObj['配送プラン'] || userObj['コース'] || '';
+                opt.dataset.category = userObj.Category || userObj.category || '';
+                opt.selected = true;
+                userSelect.appendChild(opt);
+            }
+
+            // ★ LINE IDが取得できている場合は、Usersシートへ即座に自動登録（バックグラウンド実行）
+            if (lineUserId && userObj) {
+                var targetUid = userObj.UserID || userObj.userId || '';
+                var bindParams = 'api=bindLineIdToUser&userId=' + encodeURIComponent(targetUid) + '&userName=' + encodeURIComponent(userName) + '&lineId=' + encodeURIComponent(lineUserId);
+                gasJsonpFetch(bindParams)
+                    .then(function(bRes) {
+                        console.log("Auto-bind result:", bRes);
+                    })
+                    .catch(function(bErr) {
+                        console.warn("Auto-bind error:", bErr);
+                    });
+            }
+
+            // 履歴モードが指定されている場合は、カレンダーを描画せずに直接履歴画面を表示
+            if (urlMode === 'history') {
+                renderHistoryView();
+            } else if (!isRestricted) {
+                renderCalendar();
+                renderCycleUI();
+                // サイクル非表示設定があれば、念のため非表示を保証
+                if (teamSettings && teamSettings.hideCycle) {
+                    document.getElementById('cycleSelectArea').style.display = 'none';
+                }
+            } else {
+                // 制限中の場合はエリアを完全にクリア
+                document.getElementById('calendarContainer').innerHTML = '';
+                document.getElementById('cycleSelectArea').style.display = 'none';
+            }
+        }
+
+        // ★ チームごとの利用規約（注意書きリンク）表示制御関数
+        function updateTermsVisibility() {
+            var termsContainer = document.getElementById('termsContainer');
+            var termsLink = document.getElementById('termsLink');
+            if (!termsContainer || !termsLink) return;
+
+            var settings = window._cachedTeamSettings;
+            if (settings && settings.termsUrl) {
+                termsLink.href = settings.termsUrl;
+                termsContainer.style.display = 'block';
+                document.body.style.paddingBottom = '105px'; // フッターの高さ確保用
+            } else {
+                termsContainer.style.display = 'none';
+                document.body.style.paddingBottom = '80px'; // デフォルトの余白
+            }
+        }
+
+        // ★ Stripe機能の共通案内バナー描画関数（自動ログイン＆未登録手動選択ルート両対応）
+        function renderStripePromoBanner(userObj) {
+            var ENABLE_STRIPE_BANNER = true; // ★本番公開スイッチ
+            var teams = window._cachedAvailableTeams || [];
+            
+            // ユーザーオブジェクトの所属チーム記号、またはURLのチーム記号を特定
+            var targetTeam = userObj ? (userObj.チーム記号 || userObj['チーム記号'] || "").toString().trim() : "";
+            if (!targetTeam && window._cachedTeamSettings && window._cachedTeamSettings.teamCode) {
+                targetTeam = window._cachedTeamSettings.teamCode;
+            }
+            if (!targetTeam && typeof urlTeamCode !== 'undefined' && urlTeamCode) {
+                targetTeam = urlTeamCode;
+            }
+            
+            // 全チームのマスターリストから該当チームの導入状況を完璧に照合
+            var isTeamStripeEnabled = false;
+            for (var ti = 0; ti < teams.length; ti++) {
+                if (teams[ti].code === targetTeam && teams[ti].enableStripe) {
+                    isTeamStripeEnabled = true;
+                    break;
+                }
+            }
+            
+            // 検証用フォールバック（前後の空白文字の罠を排除するため部分一致で強固にトラップ）
+            var normTeam = targetTeam ? targetTeam.toUpperCase() : "";
+            if (!isTeamStripeEnabled && normTeam && (normTeam.indexOf("YM3") !== -1 || normTeam.indexOf("SGH") !== -1 || normTeam.indexOf("TEST") !== -1 || normTeam.indexOf("DEMO") !== -1)) {
+                isTeamStripeEnabled = true;
+            }
+
+            var cardStatus = userObj ? (userObj.カード登録状況 || userObj['カード登録状況'] || "").toString().trim() : "";
+            var isCardRegistered = (cardStatus.indexOf('✅') !== -1 || cardStatus.indexOf('登録済み') !== -1);
+            
+            var dT = userObj ? (userObj.DeliveryType || userObj.deliveryType || "").toString().trim() : "";
+            var isRestricted = (!dT || dT.indexOf('不可') !== -1);
+
+            // チームのカード導入が有効、注文対象外でない、かつ未登録の場合に美しい案内バナーを挿入
+            if (ENABLE_STRIPE_BANNER && isTeamStripeEnabled && !isRestricted && !isCardRegistered) {
+                if (!document.getElementById('stripePromoMsg')) {
+                    var promoDiv = document.createElement('div');
+                    promoDiv.id = 'stripePromoMsg';
+                    
+                    var isTest = window._isStripeTestMode || false;
+                    var bg = isTest ? 'linear-gradient(135deg, #fff5f5 0%, #ffebeb 100%)' : 'linear-gradient(135deg, #fff9e6 0%, #fff2cc 100%)';
+                    var border = isTest ? '1px solid #feb2b2' : '1px solid #ffe082';
+                    var color = isTest ? '#c53030' : '#b78103';
+                    var title = isTest ? '⚠️ テストモード接続中' : 'クレジットカード未登録です';
+                    var description = isTest 
+                        ? '現在テスト環境で動作しています。Stripeのテスト用カード番号を使用して、安全に登録フローを検証できます。（本番の請求は発生しません）' 
+                        : 'いつもご利用いただきありがとうございます。<br>利便性向上と、スムーズな運営のため、クレジットカードによる自動引き落としシステムを導入いたしました。毎月のお振込の手間がなくなりますので、ぜひご利用ください。<br><br>※カード登録を希望されない場合は、これまで通り銀行振込での対応も継続いたしますのでご安心ください。 そのままご注文におすすみください。';
+                    
+                    promoDiv.style.cssText = 'background:' + bg + '; border:' + border + '; color:' + color + '; padding:12px 15px; border-radius:12px; margin:10px 0 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);';
+                    
+                    var headerHtml = '<div id="stripePromoHeader" style="display:flex; align-items:center; justify-content:center; text-align:center; gap:8px; cursor:pointer; font-weight:bold; font-size:0.95rem; user-select:none;">' +
+                        '<span>' + (isTest ? '⚠️ テストモード接続中<br>（詳細・登録はこちら ▼）' : '💳 クレジットカード未登録です<br>（詳細・登録はこちら ▼）') + '</span>' +
+                        '</div>';
+                    
+                    var bodyHtml = '<div id="stripePromoBody" style="display:none; margin-top:12px; border-top:1px solid rgba(0,0,0,0.08); padding-top:12px; text-align:left;">' +
+                        '<p style="font-size:0.85rem; font-weight:normal; margin-bottom:12px; color:#666; line-height:1.45;">' + description + '</p>' +
+                        '<div style="text-align:center; margin-top:10px;">' +
+                        '<button id="stripeSetupBtn" style="background:#007AFF; color:white; border:none; padding:8px 20px; border-radius:20px; font-weight:bold; font-size:0.9rem; box-shadow:0 2px 8px rgba(0,122,255,0.3); cursor:pointer;">カードを登録する</button>' +
+                        '</div>' +
+                        '</div>';
+                    
+                    promoDiv.innerHTML = headerHtml + bodyHtml;
+                    
+                    var container = document.querySelector('.container');
+                    var restrictedElem = document.getElementById('restrictedMsg');
+                    var welcomeElem = document.getElementById('welcomeMsg');
+                    
+                    var insertTarget = restrictedElem || welcomeElem;
+                    if (insertTarget && insertTarget.nextSibling) {
+                        container.insertBefore(promoDiv, insertTarget.nextSibling);
+                    } else if (container) {
+                        if (container.firstChild) {
+                            container.insertBefore(promoDiv, container.firstChild);
+                        } else {
+                            container.appendChild(promoDiv);
+                        }
+                    }
+
+                    // アコーディオン開閉のイベントリスナー
+                    var promoHeader = promoDiv.querySelector('#stripePromoHeader');
+                    var promoBody = promoDiv.querySelector('#stripePromoBody');
+                    if (promoHeader && promoBody) {
+                        promoHeader.onclick = function() {
+                            if (promoBody.style.display === 'none') {
+                                promoBody.style.display = 'block';
+                                promoHeader.querySelector('span').innerHTML = isTest 
+                                    ? '⚠️ テストモード接続中<br>（詳細・登録はこちら ▲）' 
+                                    : '💳 クレジットカード未登録です<br>（詳細・登録はこちら ▲）';
+                            } else {
+                                promoBody.style.display = 'none';
+                                promoHeader.querySelector('span').innerHTML = isTest 
+                                    ? '⚠️ テストモード接続中<br>（詳細・登録はこちら ▼）' 
+                                    : '💳 クレジットカード未登録です<br>（詳細・登録はこちら ▼）';
+                            }
+                        };
+                    }
+
+                    // バナーのボタンクリックイベント
+                    var setupBtn = promoDiv.querySelector('#stripeSetupBtn');
+                    if (setupBtn) {
+                        setupBtn.onclick = function() {
+                            setupBtn.disabled = true;
+                            setupBtn.innerText = "接続中...";
+                            setupBtn.style.background = "#ccc";
+                            
+                            var params = 'api=getStripeSetupUrl';
+                            if (lineUserId) params += '&lineId=' + encodeURIComponent(lineUserId);
+                            if (urlTeamCode) params += '&teamCode=' + encodeURIComponent(urlTeamCode);
+
+                            gasJsonpFetch(params)
+                                .then(function(res) {
+                                    if (res && res.success && res.url) {
+                                        window.location.href = res.url;
+                                    } else {
+                                        alert("接続エラー: " + (res ? res.message : "URLを取得できませんでした"));
+                                        setupBtn.disabled = false;
+                                        setupBtn.innerText = "カードを登録する";
+                                        setupBtn.style.background = "#007AFF";
+                                    }
+                                })
+                                .catch(function(err) {
+                                    alert("通信エラー: " + err.message);
+                                    setupBtn.disabled = false;
+                                    setupBtn.innerText = "カードを登録する";
+                                    setupBtn.style.background = "#007AFF";
+                                });
+                        };
+                    }
+                }
+            } else {
+                // URLに "debug=true" が含まれる場合のみ、検証用デバッグインジケーターを配置
+                var isDebugMode = window.location.search.indexOf('debug=true') !== -1;
+                if (isDebugMode) {
+                    var dbgId = 'stripeDebugBadge';
+                    if (!document.getElementById(dbgId)) {
+                        var dbg = document.createElement('div');
+                        dbg.id = dbgId;
+                        dbg.style.cssText = 'position:fixed; bottom:5px; right:5px; background:rgba(0,0,0,0.8); color:#fff; font-size:11px; padding:4px 8px; border-radius:4px; z-index:99999; font-family:monospace;';
+                        var mCount = teams ? teams.length + "teams" : "null";
+                        dbg.innerText = "Stripe Debug: Team[" + targetTeam + "]=ON(" + isTeamStripeEnabled + "), Master=" + mCount + ", Reg=" + isCardRegistered + ", Rest=" + isRestricted;
+                        document.body.appendChild(dbg);
+                    }
+                }
+            }
+        }
+
+        function setupUserRegistrationUI(data) {
+            var userSelectArea = document.querySelector('.user-select-area');
+            var isRegisterMode = (urlMode === 'register');
+
+            // 既存の内容をクリア
+            userSelectArea.innerHTML = '';
+
+            // 共通: カテゴリー選択
+            var catGroup = document.createElement('div');
+            catGroup.className = 'form-group';
+            catGroup.style.cssText = 'background:white; padding:20px; border-radius:12px 12px 0 0; margin-bottom:0; box-shadow:0 2px 10px rgba(0,0,0,0.05);';
+            var catLabel = document.createElement('label');
+            catLabel.htmlFor = 'categorySelect';
+            catLabel.style.cssText = 'font-weight:bold; color:#555;';
+            catLabel.textContent = 'カテゴリーを選択';
+            var catSelect = document.createElement('select');
+            catSelect.id = 'categorySelect';
+            catSelect.style.cssText = 'width:100%; padding:12px; margin-top:8px; border-radius:8px; border:1px solid #ddd; font-size:16px;';
+            catGroup.appendChild(catLabel);
+            catGroup.appendChild(catSelect);
+            userSelectArea.appendChild(catGroup);
+
+            // 共通: ユーザー選択 (初期は非表示)
+            var userGroup = document.createElement('div');
+            userGroup.id = 'userSelectGroup';
+            userGroup.className = 'form-group';
+            userGroup.style.cssText = 'display:none; background:white; padding:0 20px; margin-bottom:0; box-shadow:0 2px 10px rgba(0,0,0,0.05);';
+            var userLabel = document.createElement('label');
+            userLabel.htmlFor = 'userSelect';
+            userLabel.style.cssText = 'font-weight:bold; color:#555;';
+            userLabel.textContent = '自分の名前を選択';
+            var userSelect = document.createElement('select');
+            userSelect.id = 'userSelect';
+            userSelect.style.cssText = 'width:100%; padding:12px; margin-top:8px; border-radius:8px; border:1px solid #ddd; font-size:16px;';
+            userGroup.appendChild(userLabel);
+            userGroup.appendChild(userSelect);
+            userSelectArea.appendChild(userGroup);
+
+            // 変数の準備
+            var kanaInputGroup, kanaInput, oaLinkBtn, bindBtn;
+
+            if (isRegisterMode) {
+                // 【登録モード】専用UI
+                kanaInputGroup = document.createElement('div');
+                kanaInputGroup.id = 'kanaInputGroup';
+                kanaInputGroup.className = 'form-group';
+                kanaInputGroup.style.cssText = 'display:none; background:white; padding:0 20px 20px 20px; border-radius:0 0 12px 12px; box-shadow:0 2px 10px rgba(0,0,0,0.05);';
+                var kanaLabel = document.createElement('label');
+                kanaLabel.htmlFor = 'kanaInput';
+                kanaLabel.style.cssText = 'font-weight:bold; color:#555;';
+                kanaLabel.textContent = '名前の読み（カタカナ）を入力';
+                kanaInput = document.createElement('input');
+                kanaInput.type = 'text';
+                kanaInput.id = 'kanaInput';
+                kanaInput.placeholder = '例：ヤマダ タロウ';
+                kanaInput.style.cssText = 'width:100%; padding:12px; margin-top:8px; border-radius:8px; border:1px solid #ddd; font-size:16px;';
+                kanaInputGroup.appendChild(kanaLabel);
+                kanaInputGroup.appendChild(kanaInput);
+                userSelectArea.appendChild(kanaInputGroup);
+
+                var btnWrapper = document.createElement('div');
+                btnWrapper.style.cssText = 'margin-top:20px; text-align:center;';
+                oaLinkBtn = document.createElement('button');
+                oaLinkBtn.id = 'oaLinkBtn';
+                oaLinkBtn.disabled = true;
+                oaLinkBtn.style.cssText = 'padding:15px; width:100%; background-color:#28a745; color:white; border:none; border-radius:8px; font-weight:bold; font-size:18px; box-shadow: 0 4px 10px rgba(40,167,69,0.3); opacity:0.5;';
+                oaLinkBtn.textContent = '送信する';
+
+                btnWrapper.appendChild(oaLinkBtn);
+                userSelectArea.appendChild(btnWrapper);
+
+                // --- 登録モードのイベント処理 ---
+                function updateLinkButton() {
+                    var uid = userSelect.value;
+                    var kana = kanaInput.value.trim();
+                    if (uid && kana) {
+                        oaLinkBtn.disabled = false;
+                        oaLinkBtn.style.opacity = '1';
+                    } else {
+                        oaLinkBtn.disabled = true;
+                        oaLinkBtn.style.opacity = '0.5';
+                    }
+                }
+
+                kanaInput.oninput = updateLinkButton;
+
+                oaLinkBtn.onclick = function () {
+                    var uid = userSelect.value;
+                    var kanjiName = userSelect.options[userSelect.selectedIndex].text;
+                    var kanaName = kanaInput.value.trim();
+                    var tCode = urlTeamCode || "無し";
+
+                    // 後の表示のためにlocalStorageに保存
+                    try {
+                        localStorage.setItem('walpass_bound_user', JSON.stringify({
+                            userId: uid,
+                            userName: kanjiName,
+                            deliveryType: userSelect.options[userSelect.selectedIndex].dataset.deliveryType || ''
+                        }));
+                    } catch (e) { }
+
+                    // メッセージを生成
+                    var msg = "【登録】[" + tCode + "] " + kanjiName + "：" + kanaName;
+
+                    // ローディング表示
+                    oaLinkBtn.disabled = true;
+                    oaLinkBtn.textContent = '送信中...';
+                    oaLinkBtn.style.backgroundColor = '#ccc';
+
+                    // GASへ直接送信 (LINE IDは取得できないため、手動で紐付けを行ってもらう運用とする)
+                    google.script.run
+                        .withSuccessHandler(function (res) {
+                            // 画面を送信完了の見た目に切り替える
+                            var container = document.querySelector('.container');
+                            var header = document.getElementById('mainHeader');
+                            if (container) container.style.display = 'none';
+                            if (header) header.style.display = 'none';
+
+                            document.body.innerHTML = '<div style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999; padding: 20px; text-align:center; font-family: sans-serif;">' +
+                                '<div style="font-size: 60px; color: #4CAF50; margin-bottom: 20px;">✓</div>' +
+                                '<h2 style="color: #333; margin-bottom: 15px; font-size: 22px;">ご協力ありがとうございました。</h2>' +
+                                '<p style="color: #666; font-size: 16px; line-height: 1.5; margin-bottom:20px;">初期登録が完了しました。<br>画面左上の「×」等で閉じてください。</p>' +
+                                '<p style="color: #1DB446; font-size: 14px; font-weight:bold; line-height: 1.5;">【お願い】<br>登録情報の紐付けのため、LINEのトーク画面に戻り、「' + kanjiName + 'です」と手動でメッセージを送信してください。</p>' +
+                                '</div>';
+
+                        })
+                        .withFailureHandler(function (err) {
+                            alert('送信に失敗しました: ' + err.message);
+                            oaLinkBtn.disabled = false;
+                            oaLinkBtn.textContent = '送信する';
+                            oaLinkBtn.style.backgroundColor = '#28a745';
+                        })
+                        .submitRegistration(tCode, kanjiName, kanaName, lineUserId || "未取得");
+                };
+
+                userSelect.onchange = function () {
+                    kanaInputGroup.style.display = this.value ? 'block' : 'none';
+                    updateLinkButton();
+                };
+
+            } else {
+                // 【通常モード】専用UI
+                bindBtn = document.createElement('button');
+                bindBtn.id = 'bindBtn';
+                bindBtn.style.cssText = 'margin-top:20px; padding:15px; width:100%; background-color:#007AFF; color:white; border:none; border-radius:8px; font-weight:bold; font-size:18px; box-shadow: 0 4px 10px rgba(0,122,255,0.3);';
+                bindBtn.textContent = 'この名前で注文画面へ進む';
+                userSelectArea.appendChild(bindBtn);
+
+                // --- 通常モードのイベント処理 ---
+                bindBtn.onclick = function () {
+                    var uid = userSelect.value;
+                    if (!uid) { alert('お名前を選択してください'); return; }
+                    var kanjiName = userSelect.options[userSelect.selectedIndex].text;
+                    var delType = userSelect.options[userSelect.selectedIndex].dataset.deliveryType;
+                    localStorage.setItem('walpass_bound_user', JSON.stringify({
+                        userId: uid,
+                        userName: kanjiName,
+                        deliveryType: delType || ''
+                    }));
+                    switchToCalendar(kanjiName);
+                };
+            }
+
+            // --- カテゴリ・ユーザーデータの投入 ---
+            var validUsers = [];
+            var cats = [];
+            data.users.forEach(function (u) { 
+                var ut = (u.DeliveryType || "").toString().trim();
+                if (ut && ut.indexOf('不可') !== -1) return; // 「不可」が明記されている場合のみ除外
+                validUsers.push(u);
+                var c = (u.Category || "").toString().trim();
+                if (c && cats.indexOf(c) === -1) cats.push(c); 
+            });
+
+            // カテゴリーが2つ以上ある場合のみカテゴリー選択を表示
+            if (cats.length > 1) {
+                catGroup.style.display = 'block';
+                catSelect.innerHTML = '<option value="">カテゴリーを選択してください</option>';
+                cats.forEach(function (c) {
+                    var op = document.createElement('option');
+                    op.value = op.textContent = c;
+                    catSelect.appendChild(op);
+                });
+
+                catSelect.onchange = function () {
+                    var sel = this.value;
+                    userGroup.style.display = sel ? 'block' : 'none';
+                    if (kanaInputGroup) {
+                        kanaInputGroup.style.display = 'none';
+                        if (kanaInput) kanaInput.value = '';
+                        if (oaLinkBtn) { oaLinkBtn.disabled = true; oaLinkBtn.style.opacity = '0.5'; }
+                    }
+
+                    if (sel) {
+                        userSelect.innerHTML = '<option value="">自分の名前を選択してください</option>';
+                        validUsers.forEach(function (u) {
+                            if (String(u.Category || "").trim() === sel) {
+                                var op = document.createElement('option');
+                                op.value = u.UserID;
+                                op.textContent = u.Name;
+                                op.dataset.deliveryType = u.DeliveryType || u.deliveryType || u['プラン'] || u['配送プラン'] || u['コース'] || '';
+                                op.dataset.category = u.Category || '';
+                                userSelect.appendChild(op);
+                            }
+                        });
+                    }
+                };
+            } else {
+                // カテゴリーが空欄または1つの場合は、カテゴリー選択を隠して直接全ユーザーを表示
+                catGroup.style.display = 'none';
+                userGroup.style.display = 'block';
+                userSelect.innerHTML = '<option value="">自分の名前を選択してください</option>';
+                validUsers.forEach(function (u) {
+                    var op = document.createElement('option');
+                    op.value = u.UserID;
+                    op.textContent = u.Name;
+                    op.dataset.deliveryType = u.DeliveryType || u.deliveryType || u['プラン'] || u['配送プラン'] || u['コース'] || '';
+                    op.dataset.category = u.Category || '';
+                    userSelect.appendChild(op);
+                });
+            }
+
+            // 注文部品等は隠す
+            document.getElementById('calendarContainer').style.display = 'none';
+            document.getElementById('cycleSelectArea').style.display = 'none';
+            document.querySelector('footer').style.display = 'none';
+        }
+
+        function switchToCalendar(userName) {
+            document.querySelector('.user-select-area').style.display = 'none';
+            document.querySelector('.container').style.display = 'block';
+            document.querySelector('footer').style.display = 'block';
+
+            renderWelcomeHeader(userName);
+
+            var savedBUser = localStorage.getItem('walpass_bound_user') ? JSON.parse(localStorage.getItem('walpass_bound_user')) : null;
+            var targetUObj = null;
+            if (savedBUser && savedBUser.userId && typeof USERS !== 'undefined') {
+                for (var ui = 0; ui < USERS.length; ui++) {
+                    if (String(USERS[ui].UserID) === String(savedBUser.userId)) {
+                        targetUObj = USERS[ui];
+                        break;
+                    }
+                }
+            }
+            renderStripePromoBanner(targetUObj);
+
+            // ★ LINE IDが取得できている場合は、Usersシートへ即座に自動登録（バックグラウンド実行）
+            if (lineUserId && savedBUser) {
+                var bindParams = 'api=bindLineIdToUser&userId=' + encodeURIComponent(savedBUser.userId || '') + '&userName=' + encodeURIComponent(userName) + '&lineId=' + encodeURIComponent(lineUserId);
+                gasJsonpFetch(bindParams)
+                    .then(function(bRes) {
+                        console.log("Auto-bind result:", bRes);
+                    })
+                    .catch(function(bErr) {
+                        console.warn("Auto-bind error:", bErr);
+                    });
+            }
+
+            var delType = savedBUser ? (savedBUser.deliveryType || "").toString().trim() : "";
+            var isRestricted = (delType && delType.indexOf('不可') !== -1);
+
+            if (isRestricted) {
+                document.getElementById('calendarContainer').innerHTML = '<div style="text-align:center; padding:20px; color:#c53030; font-weight:bold;">現在、注文機能は制限されています。</div>';
+                document.getElementById('cycleSelectArea').style.display = 'none';
+                document.querySelector('footer').style.display = 'none';
+            } else {
+                document.getElementById('calendarContainer').style.display = 'block';
+                document.getElementById('cycleSelectArea').style.display = 'block';
+                document.querySelector('footer').style.display = 'block';
+                updateTermsVisibility();
+                renderCalendar();
+                renderCycleUI();
+            }
+
+            if (urlMode === 'history') {
+                setTimeout(renderHistoryView, 300);
+            }
+        }
+
+        function onFailure(error) {
+            document.getElementById('loading').style.display = 'none';
+            alert('エラーが発生しました: ' + (error.message || error));
+        }
+
+        function renderCategorySelect() {
+            var catSelect = document.getElementById('categorySelect');
+
+            if (!USERS || USERS.length === 0) {
+                catSelect.innerHTML = '<option value="" disabled selected>チーム情報を取得できませんでした</option>';
+                catSelect.disabled = true;
+                return;
+            }
+
+            var categories = [];
+            for (var i = 0; i < USERS.length; i++) {
+                var dt = (USERS[i].DeliveryType || "").toString().trim();
+                if (dt && dt.indexOf('不可') !== -1) continue;
+
+                var cat = (USERS[i].Category || "").toString().trim();
+                if (cat && categories.indexOf(cat) === -1) {
+                    categories.push(cat);
+                }
+            }
+
+            if (categories.length > 1) {
+                catSelect.innerHTML = '<option value="" disabled selected>カテゴリーを選択してください</option>';
+                catSelect.disabled = false;
+                for (var j = 0; j < categories.length; j++) {
+                    var catName = categories[j];
+                    var option = document.createElement('option');
+                    option.value = catName;
+                    option.textContent = catName;
+                    catSelect.appendChild(option);
+                }
+            } else {
+                // カテゴリーが1つ以下なら直接全部員を表示
+                var catLabel = document.querySelector('label[for="categorySelect"]');
+                if (catLabel) catLabel.style.display = 'none';
+                catSelect.style.display = 'none';
+                renderUserSelect(categories.length === 1 ? categories[0] : null);
+            }
+        }
+
+        function renderUserSelect(category) {
+            var select = document.getElementById('userSelect');
+            select.innerHTML = '<option value="" disabled selected>自分の名前を選択してください</option>';
+            select.disabled = false;
+            select.style.backgroundColor = '#fff';
+
+            var filteredUsers = USERS.filter(function (user) {
+                var dt = (user.DeliveryType || "").toString().trim();
+                if (dt && dt.indexOf('不可') !== -1) return false;
+                if (!category) return true; // カテゴリー指定なしなら全ユーザー
+                return String(user.Category || "").trim() === category;
+            });
+
+            if (filteredUsers.length === 0) {
+                select.innerHTML = '<option value="" disabled selected>該当するユーザーがいません</option>';
+                select.disabled = true;
+                return;
+            }
+
+            filteredUsers.forEach(function (user) {
+                var option = document.createElement('option');
+                option.value = user.UserID;
+                option.textContent = user.Name;
+                // DeliveryTypeとCategoryを紐づけ
+                option.dataset.deliveryType = user.DeliveryType;
+                option.dataset.category = user.Category;
+                select.appendChild(option);
+            });
+        }
+
+        window._currentUserHistory = [];
+        var _historyLoadCounter = 0;
+        function loadUserOrderHistory(userId) {
+            if (!userId) return;
+            var currentCounter = ++_historyLoadCounter;
+            var params = 'api=getOrderHistory&userId=' + encodeURIComponent(userId);
+            if (lineUserId) params += '&lineId=' + encodeURIComponent(lineUserId);
+
+            gasJsonpFetch(params).then(function (res) {
+                if (currentCounter === _historyLoadCounter) {
+                    window._currentUserHistory = res.orders || [];
+                    console.log('Successfully cached user history count:', window._currentUserHistory.length);
+                }
+            }).catch(function (err) {
+                console.error('Failed to load user history:', err);
+            });
+        }
+
+        function normalizeDateString(dateStr) {
+            if (!dateStr) return "";
+            var parts = dateStr.split('/');
+            if (parts.length === 3) {
+                var y = parts[0];
+                var m = parts[1].length === 1 ? '0' + parts[1] : parts[1];
+                var d = parts[2].length === 1 ? '0' + parts[2] : parts[2];
+                return y + '/' + m + '/' + d;
+            }
+            return dateStr;
+        }
+
+        function renderCalendar() {
+            var container = document.getElementById('calendarContainer');
+            container.innerHTML = '';
+
+            var userSelect = document.getElementById('userSelect');
+            var selectedOption = userSelect.options[userSelect.selectedIndex];
+
+            if (!selectedOption || !selectedOption.value) {
+                // ユーザーが選ばれていない
+                container.innerHTML = '<div style="text-align:center; padding:20px;">注文できない状態です</div>';
+                return;
+            }
+
+            // 選択されたユーザーの履歴を非同期で先読み
+            loadUserOrderHistory(selectedOption.value);
+
+            var deliveryType = (selectedOption.dataset.deliveryType || "").toString().trim();
+            
+            if (deliveryType && deliveryType.indexOf('不可') !== -1) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:#c53030; font-weight:bold;">現在、注文機能は制限されています。</div>';
+                return;
+            }
+
+            var allowedDates = getAllowedDates(deliveryType); // ['2026/02/20', '2026/02/24'...]
+
+            // 表示期間
+            var today = new Date();
+            var daysToShow = 90;
+
+            var hasAvailableDays = false;
+            var dayCount = 0; // サイクル用の有効日数カウンター
+
+            for (var i = 0; i < daysToShow; i++) {
+                var date = new Date(today);
+                date.setDate(today.getDate() + i);
+
+                var dateStr = formatDate(date); // YYYY/MM/DD
+
+                // 日付チェック (allowedDatesが空＝どの日も注文不可)
+                if (allowedDates.indexOf(dateStr) === -1) {
+                    continue;
+                }
+
+                hasAvailableDays = true;
+
+                const displayDate = (date.getMonth() + 1) + '/' + date.getDate();
+                const dayOfWeekStr = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+
+                // 休日判定用クラス
+                let dayClass = '';
+                if (date.getDay() === 0) dayClass = 'weekend-sun';
+                if (date.getDay() === 6) dayClass = 'weekend-sat';
+
+                // カード生成
+                const card = document.createElement('div');
+                card.className = 'day-card';
+                card.dataset.date = dateStr;
+                // 表示用日付（JS側の確認用）
+                card.dataset.displayDate = displayDate;
+                // 何番目の利用可能な日かを記録（サイクル計算用）
+                card.dataset.dayIndex = dayCount;
+                dayCount++;
+
+                // 日付ヘッダー
+                const header = document.createElement('div');
+                header.className = 'day-header ' + dayClass;
+                header.innerHTML = '<span>' + displayDate + ' (' + dayOfWeekStr + ')</span>';
+                card.appendChild(header);
+
+                // 商品リスト
+                const prodList = document.createElement('div');
+                prodList.className = 'product-list';
+
+                PRODUCTS.forEach(function (prod) {
+                    var item = document.createElement('div');
+                    item.className = 'product-item';
+
+                    // カテゴリーバッジのクラス判定
+                    var catClass = '';
+                    var catText = prod.Category || '';
+                    if (catText.indexOf('前') !== -1) {
+                        catClass = 'cat-pre';
+                        catText = '運動前'; // テキストもLPに合わせて短縮
+                    } else if (catText.indexOf('後') !== -1) {
+                        catClass = 'cat-post';
+                        catText = '運動後'; // テキストもLPに合わせて短縮
+                    }
+
+                    var catBadge = catText ? '<span class="product-category ' + catClass + '">' + catText + '</span>' : '';
+
+                    item.innerHTML =
+                        '<div class="product-info">' +
+                        '<div class="product-header">' +
+                        catBadge +
+                        '</div>' +
+                        '<div class="product-name">' +
+                        prod.Name + ' <span class="product-price">' + prod.Price + '</span>' +
+                        '</div>' +
+                        '</div>' +
+                        '<div class="stepper">' +
+                        '<button type="button" onclick="updateQuantity(this, -1)">-</button>' +
+                        '<input type="text" value="0" readonly data-product-id="' + prod.ProductID + '" data-product-name="' + prod.Name + '">' +
+                        '<button type="button" onclick="updateQuantity(this, 1)">+</button>' +
+                        '</div>';
+                    prodList.appendChild(item);
+                });
+
+                card.appendChild(prodList);
+                container.appendChild(card);
+            }
+
+            if (!hasAvailableDays) {
+                container.innerHTML = '<div style="text-align:center; padding:20px;">注文可能な配送日がありません</div>';
+            }
+        }
+
+        function getAllowedDates(deliveryType) {
+            if (!RULES || RULES.length === 0) return [];
+
+            var matchedRules = [];
+            if (deliveryType) {
+                for (var i = 0; i < RULES.length; i++) {
+                    if (String(RULES[i].DeliveryType || "").trim() === String(deliveryType).trim()) {
+                        matchedRules.push(RULES[i]);
+                    }
+                }
+            }
+            // マッチするルールがない、またはdeliveryTypeが空欄の場合はRULESの全ルールを採用
+            if (matchedRules.length === 0) {
+                matchedRules = RULES;
+            }
+
+            var allRawDates = [];
+            matchedRules.forEach(function(r) {
+                if (r && r.Dates) allRawDates.push(r.Dates);
+            });
+
+            if (allRawDates.length > 0) {
+                var datesRaw = allRawDates.join(',');
+
+                // Dateオブジェクトの場合は文字列に変換
+                if (datesRaw instanceof Date) {
+                    return [formatDate(datesRaw)];
+                }
+
+                if (typeof datesRaw === 'string') {
+                    // 1. 全角数字と記号を半角に変換
+                    var text = datesRaw.replace(/[０-９]/g, function (s) {
+                        return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+                    });
+
+                    // 2. 年月日の表記やドットなどをスラッシュに統一
+                    text = text.replace(/年|月|\./g, '/').replace(/日/g, '');
+
+                    // 3. 改行、カンマ、読点、スペースなどで分割
+                    var rawArray = text.split(/[\n,、\s]+/);
+
+                    var processedDates = [];
+
+                    rawArray.forEach(function (d) {
+                        var cleanDate = d.trim().replace(/-/g, '/');
+                        if (!cleanDate) return;
+
+                        // 'MM/DD' のような年が省略された形式にも対応（今年の年を補完）
+                        var parts = cleanDate.split('/');
+                        if (parts.length === 2) {
+                            var currentYear = new Date().getFullYear();
+                            cleanDate = currentYear + '/' + parts[0] + '/' + parts[1];
+                        } else if (parts.length === 3) {
+                            // '26/2/20' のような下2桁の年号に対応
+                            if (parts[0].length === 2) {
+                                cleanDate = '20' + parts[0] + '/' + parts[1] + '/' + parts[2];
+                            }
+                        }
+
+                        // 月日が1桁の場合にゼロ埋めする処理
+                        var finalParts = cleanDate.split('/');
+                        if (finalParts.length === 3) {
+                            var y = finalParts[0];
+                            var m = ('0' + finalParts[1]).slice(-2);
+                            var day = ('0' + finalParts[2]).slice(-2);
+                            processedDates.push(y + '/' + m + '/' + day);
+                        }
+                    });
+                    return processedDates;
+                }
+            }
+            return [];
+        }
+
+        function updateQuantity(btn, change) {
+            var input = btn.parentElement.querySelector('input');
+            var val = parseInt(input.value);
+            val += change;
+            if (val < 0) val = 0;
+            input.value = val;
+        }
+
+        function formatDate(d) {
+            var year = d.getFullYear();
+            var month = ('0' + (d.getMonth() + 1)).slice(-2);
+            var day = ('0' + d.getDate()).slice(-2);
+            return year + '/' + month + '/' + day;
+        }
+
+        // --- サイクル作成UI関連 ---
+        function renderCycleUI() {
+            var cycleArea = document.getElementById('cycleSelectArea');
+            var container = document.getElementById('cycleItemsContainer');
+
+            // チーム設定でサイクル非表示が指定されている場合は、非表示にして早期リターン
+            var settings = window._cachedTeamSettings;
+            if (settings && settings.hideCycle) {
+                cycleArea.style.display = 'none';
+                return;
+            }
+
+            // リセット
+            cycleSelection = [];
+            container.innerHTML = '';
+            cycleArea.style.display = 'block';
+
+            PRODUCTS.forEach(function (prod) {
+                var item = document.createElement('div');
+                item.className = 'cycle-item';
+                item.dataset.id = prod.ProductID;
+
+                var catText = prod.Category ? '[' + prod.Category.substring(0, 3) + '] ' : '';
+
+                item.innerHTML =
+                    '<span class="cycle-order"></span>\n' +
+                    catText + prod.Name;
+
+                item.addEventListener('click', function () {
+                    handleCycleItemClick(this, prod);
+                });
+
+                container.appendChild(item);
+            });
+        }
+
+        function handleCycleItemClick(element, prod) {
+            var productId = prod.ProductID;
+            var index = -1;
+            for (var i = 0; i < cycleSelection.length; i++) {
+                if (cycleSelection[i].id === productId) {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index > -1) {
+                // すでに選択されていれば解除
+                cycleSelection.splice(index, 1);
+                element.classList.remove('selected');
+                element.querySelector('.cycle-order').textContent = '';
+            } else {
+                // 新しく選択
+                cycleSelection.push({ id: productId, name: prod.Name });
+                element.classList.add('selected');
+            }
+
+            // 順番の数字を再計算して表示
+            updateCycleOrderDisplay();
+        }
+
+        function updateCycleOrderDisplay() {
+            var items = document.querySelectorAll('.cycle-item');
+            items.forEach(function (item) {
+                if (item.classList.contains('selected')) {
+                    var idx = -1;
+                    for (var i = 0; i < cycleSelection.length; i++) {
+                        if (cycleSelection[i].id === item.dataset.id) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                    item.querySelector('.cycle-order').textContent = (idx + 1);
+                } else {
+                    item.querySelector('.cycle-order').textContent = '';
+                }
+            });
+        }
+
+        function applyCycle() {
+            if (cycleSelection.length === 0) {
+                showModalAsync('サイクルにするパンを1つ以上選択してください。', 'alert');
+                return;
+            }
+
+            var msg = '<div style="text-align:left; font-size:14px; line-height:1.6; padding:0 5px;">' +
+                      '<strong style="font-size:15px; display:block; text-align:center; margin-bottom:12px;">サイクルの適用方法を選択</strong>' +
+                      '<strong>● 新規</strong><br>' +
+                      '<span style="color:#666; font-size:12px; display:block; margin-bottom:10px; margin-left:12px;">現在入力されている注文数をすべて消して、新しくこのサイクルを適用します。</span>' +
+                      '<strong>● 追加</strong><br>' +
+                      '<span style="color:#666; font-size:12px; display:block; margin-left:12px;">現在の入力は残したまま、このサイクルを追加（各日＋1個）します。</span>' +
+                      '</div>';
+
+            showModalAsync(msg, 'cycle_confirm').then(function (choice) {
+                if (choice === 'cancel') {
+                    return;
+                }
+
+                // 全ての日付カードを取得
+                var dayCards = document.querySelectorAll('.day-card');
+
+                dayCards.forEach(function (card) {
+                    var dayIndex = parseInt(card.dataset.dayIndex);
+
+                    // サイクルの配列から、この日に対応する商品を決定
+                    var cycleItem = cycleSelection[dayIndex % cycleSelection.length];
+                    var targetProductId = cycleItem.id;
+
+                    var targetInput = card.querySelector('input[data-product-id="' + targetProductId + '"]');
+
+                    if (choice === 'clear') {
+                        // カード内の全てのinputを一度0にする
+                        var inputs = card.querySelectorAll('.stepper input');
+                        inputs.forEach(function (input) {
+                            input.value = "0";
+                        });
+
+                        // ターゲット商品のinputを1にする
+                        if (targetInput) {
+                            targetInput.value = "1";
+                        }
+                    } else if (choice === 'add') {
+                        // ターゲット商品の現在の数を+1する
+                        if (targetInput) {
+                            var currentVal = parseInt(targetInput.value) || 0;
+                            targetInput.value = (currentVal + 1).toString();
+                        }
+                    }
+                });
+
+                showModalAsync('サイクルを適用しました！\n数や種類の微調整があれば手動で行ってください。', 'alert');
+            });
+        }
+
+        // --- カスタムモーダル関数 (非同期で結果を返す) ---
+        function showModalAsync(message, type, shareText) {
+            if (!type) type = 'alert';
+            return new Promise(function (resolve) {
+                var overlay = document.getElementById('customModal');
+                var textElem = document.getElementById('customModalText');
+                var footerElem = document.getElementById('customModalFooter');
+
+                textElem.innerHTML = message;
+                footerElem.innerHTML = '';
+
+                if (type === 'success' && shareText) {
+                    // コピー
+                    var copyBtn = document.createElement('button');
+                    copyBtn.className = 'custom-modal-btn';
+                    copyBtn.textContent = 'コピー';
+                    copyBtn.onclick = function () {
+                        var t = document.createElement('textarea');
+                        t.value = shareText; document.body.appendChild(t);
+                        t.select(); document.execCommand('copy');
+                        document.body.removeChild(t);
+                        alert('コピーしました');
+                    };
+                    footerElem.appendChild(copyBtn);
+
+                    // 共有
+                    if (navigator.share) {
+                        var shareBtn = document.createElement('button');
+                        shareBtn.className = 'custom-modal-btn';
+                        shareBtn.textContent = '共有';
+                        shareBtn.onclick = function () {
+                            navigator.share({ title: '注文控え', text: shareText });
+                        };
+                        footerElem.appendChild(shareBtn);
+                    }
+
+                    var closeBtn = document.createElement('button');
+                    closeBtn.className = 'custom-modal-btn';
+                    closeBtn.textContent = '閉じる';
+                    closeBtn.onclick = function () { overlay.style.display = 'none'; resolve(true); };
+                    footerElem.appendChild(closeBtn);
+                } else if (type === 'alert' || type === 'success') {
+                    // OKボタンのみ
+                    var okBtn = document.createElement('button');
+                    okBtn.className = 'custom-modal-btn';
+                    okBtn.textContent = 'OK';
+                    okBtn.onclick = function () {
+                        overlay.style.display = 'none';
+                        resolve(true);
+                    };
+                    footerElem.appendChild(okBtn);
+                } else if (type === 'three_button') {
+                    // 上書き・追加・キャンセル
+                    var overwriteBtn = document.createElement('button');
+                    overwriteBtn.className = 'custom-modal-btn';
+                    overwriteBtn.textContent = '上書き(更新)';
+                    overwriteBtn.style.color = '#e63946'; // 警告色
+                    overwriteBtn.onclick = function () {
+                        overlay.style.display = 'none';
+                        resolve('overwrite');
+                    };
+
+                    var appendBtn = document.createElement('button');
+                    appendBtn.className = 'custom-modal-btn';
+                    appendBtn.textContent = '追加購入';
+                    appendBtn.style.color = '#1DB446'; // 安全色
+                    appendBtn.onclick = function () {
+                        overlay.style.display = 'none';
+                        resolve('append');
+                    };
+
+                    var cancelBtn = document.createElement('button');
+                    cancelBtn.className = 'custom-modal-btn cancel';
+                    cancelBtn.textContent = 'キャンセル';
+                    cancelBtn.onclick = function () {
+                        overlay.style.display = 'none';
+                        resolve('cancel');
+                    };
+
+                    footerElem.appendChild(overwriteBtn);
+                    footerElem.appendChild(appendBtn);
+                    footerElem.appendChild(cancelBtn);
+                } else if (type === 'cycle_confirm') {
+                    // サイクル適用時の3択（クリアして適用・重ねて追加・キャンセル）
+                    var clearBtn = document.createElement('button');
+                    clearBtn.className = 'custom-modal-btn';
+                    clearBtn.textContent = '新規';
+                    clearBtn.style.color = '#e63946'; // 警告色
+                    clearBtn.onclick = function () {
+                        overlay.style.display = 'none';
+                        resolve('clear');
+                    };
+
+                    var addBtn = document.createElement('button');
+                    addBtn.className = 'custom-modal-btn';
+                    addBtn.textContent = '追加';
+                    addBtn.style.color = '#1DB446'; // 安全色
+                    addBtn.onclick = function () {
+                        overlay.style.display = 'none';
+                        resolve('add');
+                    };
+
+                    var cancelBtn = document.createElement('button');
+                    cancelBtn.className = 'custom-modal-btn cancel';
+                    cancelBtn.textContent = 'キャンセル';
+                    cancelBtn.onclick = function () {
+                        overlay.style.display = 'none';
+                        resolve('cancel');
+                    };
+
+                    footerElem.appendChild(clearBtn);
+                    footerElem.appendChild(addBtn);
+                    footerElem.appendChild(cancelBtn);
+                } else if (type === 'confirm') {
+                    // キャンセルとOK
+                    var cancelBtn = document.createElement('button');
+                    cancelBtn.className = 'custom-modal-btn cancel';
+                    cancelBtn.textContent = 'キャンセル';
+                    cancelBtn.onclick = function () {
+                        overlay.style.display = 'none';
+                        resolve(false);
+                    };
+
+                    var confirmBtn = document.createElement('button');
+                    confirmBtn.className = 'custom-modal-btn';
+                    confirmBtn.textContent = 'OK';
+                    confirmBtn.onclick = function () {
+                        overlay.style.display = 'none';
+                        resolve(true);
+                    };
+
+                    footerElem.appendChild(cancelBtn);
+                    footerElem.appendChild(confirmBtn);
+                }
+
+                overlay.style.display = 'flex';
+            });
+        }
+
+        function submitOrder() {
+            try {
+                var btn = document.querySelector('.submit-btn');
+
+                // ユーザー選択チェック
+                var userSelect = document.getElementById('userSelect');
+                if (!userSelect.value) {
+                    showModalAsync('注文者を選択してください。', 'alert');
+                    return;
+                }
+
+                var userId = userSelect.value;
+                var userName = userSelect.options[userSelect.selectedIndex].text;
+                var deliveryType = userSelect.options[userSelect.selectedIndex].dataset.deliveryType;
+                var category = userSelect.options[userSelect.selectedIndex].dataset.category;
+
+                // チーム(Category/DeliveryType)ごとの設定を取得
+                var rule = null;
+                for (var rIndex = 0; rIndex < RULES.length; rIndex++) {
+                    if (RULES[rIndex].DeliveryType == deliveryType) {
+                        rule = RULES[rIndex];
+                        break;
+                    }
+                }
+
+                // "MustOrderAllDays"列
+                var mustOrderAllDays = true;
+                if (rule && rule.MustOrderAllDays !== undefined) {
+                    var valStr = String(rule.MustOrderAllDays).trim().toUpperCase();
+                    if (valStr === 'FALSE' || valStr === '0') {
+                        mustOrderAllDays = false;
+                    }
+                }
+
+                // 注文データの収集
+                var orders = [];
+                var dayCards = document.querySelectorAll('.day-card');
+
+                if (dayCards.length === 0) {
+                    showModalAsync('カレンダーが表示されていません。', 'alert');
+                    return;
+                }
+
+                var missingDates = []; // 0個の日
+                var multipleOrderDates = []; // 2個以上の日
+
+                dayCards.forEach(function (card) {
+                    var date = card.dataset.date;
+                    var displayDate = card.dataset.displayDate || date;
+                    var inputs = card.querySelectorAll('input');
+                    var dayTotal = 0;
+
+                    inputs.forEach(function (input) {
+                        var val = input.value;
+                        var qty = parseInt(val);
+                        if (!isNaN(qty) && qty > 0) {
+                            orders.push({
+                                date: date,
+                                productId: input.dataset.productId,
+                                productName: input.dataset.productName,
+                                quantity: qty
+                            });
+                            dayTotal += qty;
+                        }
+                    });
+
+                    // その日の合計が0なら未選択リストへ
+                    if (dayTotal === 0) {
+                        missingDates.push(displayDate);
+                    }
+                    // その日の合計が2以上なら確認リストへ
+                    else if (dayTotal >= 2) {
+                        multipleOrderDates.push(displayDate + ' (' + dayTotal + '個)');
+                    }
+                });
+
+                // 設定で「全日程必須」となっていて、かつ1つも選んでいない日がある場合はエラー
+                if (mustOrderAllDays && missingDates.length > 0) {
+                    showModalAsync('全ての日程で1つ以上注文してください。\n※このチームは注文のスキップができません。\n\n【未選択の日付】\n' + missingDates.join('\n'), 'alert');
+                    return;
+                }
+
+                // 全部の日程で注文が0個（全く注文していない）場合はエラー
+                if (orders.length === 0) {
+                    showModalAsync('注文が1つもありません。最低1つは商品を選択してください。', 'alert');
+                    return;
+                }
+
+                // 最低注文個数制限チェック
+                var minOrderCount = 0;
+                if (window._cachedTeamSettings && window._cachedTeamSettings.minOrderCount) {
+                    minOrderCount = parseInt(window._cachedTeamSettings.minOrderCount) || 0;
+                }
+
+                if (minOrderCount > 0) {
+                    var totalQty = 0;
+                    orders.forEach(function (order) {
+                        totalQty += order.quantity;
+                    });
+
+                    if (totalQty < minOrderCount) {
+                        showModalAsync('ご注文ありがとうございます。現在の注文数は合計 ' + totalQty + ' 個です。\n\n大変恐れ入りますが、このチームは最低 ' + minOrderCount + ' 個からのご注文となります。\nあと ' + (minOrderCount - totalQty) + ' 個以上ご選択いただくようお願いいたします。🙇‍♀️', 'alert');
+                        return;
+                    }
+                }
+
+                // 平均数量に基づく単価確認メッセージの生成
+                var applicablePrice = null;
+                var avgDetailsText = '';
+                if (window._cachedTeamSettings && 
+                    window._cachedTeamSettings.avgPriceLimitQty > 0 && 
+                    window._cachedTeamSettings.avgPricePromoPrice > 0) {
+                    
+                    var limitQty = window._cachedTeamSettings.avgPriceLimitQty;
+                    var promoPrice = window._cachedTeamSettings.avgPricePromoPrice;
+                    var normalPrice = window._cachedTeamSettings.avgPriceNormalPrice || 0;
+                    
+                    var allowedDates = getAllowedDates(deliveryType);
+                    var totalDeliveryDays = allowedDates.length;
+                    if (totalDeliveryDays === 0) totalDeliveryDays = 1;
+                    
+                    var totalQty = 0;
+                    orders.forEach(function (order) {
+                        totalQty += order.quantity;
+                    });
+                    
+                    var avgQty = totalQty / totalDeliveryDays;
+                    applicablePrice = (avgQty >= limitQty) ? promoPrice : normalPrice;
+                    
+                    var roundedAvg = Math.round(avgQty * 100) / 100;
+                    avgDetailsText = '（合計' + totalQty + '個 ÷ 配送' + totalDeliveryDays + '日 ＝ 1日平均' + roundedAvg + '個）';
+                }
+
+                // ★ 選手の「週N回プラン」チェック
+                var planCheckWarning = '';
+                var dTString = (deliveryType || "").toString();
+                var planMatch = dTString.match(/週\s*([0-9０-９])/);
+                if (planMatch) {
+                    var expectedWeeklyCount = parseInt(planMatch[1].replace(/[０-９]/g, function(s) { return String.fromCharCode(s.charCodeAt(0) - 0xFEE0); }));
+                    if (expectedWeeklyCount > 0) {
+                        var weeklyOrders = {};
+                        orders.forEach(function(o) {
+                            var d = new Date(o.date.replace(/-/g, '/'));
+                            if (!isNaN(d.getTime())) {
+                                var day = d.getDay();
+                                var diff = d.getDate() - day + (day === 0 ? -6 : 1); // 月曜日
+                                var monday = new Date(d);
+                                monday.setDate(diff);
+                                var weekKey = monday.getFullYear() + '/' + (monday.getMonth() + 1) + '/' + monday.getDate();
+                                weeklyOrders[weekKey] = (weeklyOrders[weekKey] || 0) + o.quantity;
+                            }
+                        });
+
+                        var weekKeys = Object.keys(weeklyOrders);
+                        var totalOrderedQty = 0;
+                        orders.forEach(function(o) { totalOrderedQty += o.quantity; });
+
+                        if (weekKeys.length <= 1) {
+                            if (totalOrderedQty < expectedWeeklyCount) {
+                                var shortQty = expectedWeeklyCount - totalOrderedQty;
+                                showModalAsync('【注文個数が不足しています】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n現在選択されている注文は 合計 ' + totalOrderedQty + '個 です。\n\nあと ' + shortQty + '個 のご注文をお願いいたします。🙇‍♂️', 'alert');
+                                return;
+                            } else if (totalOrderedQty > expectedWeeklyCount) {
+                                var overQty = totalOrderedQty - expectedWeeklyCount;
+                                planCheckWarning = '【注文個数のご確認】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されていますが、現在選択されている注文は 合計 ' + totalOrderedQty + '個（+' + overQty + '個）です。\n押し間違い等はございませんか？\n\n';
+                            }
+                        } else {
+                            var shortIssues = [];
+                            var overIssues = [];
+                            weekKeys.forEach(function(wKey) {
+                                var count = weeklyOrders[wKey];
+                                var shortWeek = wKey.split('/').slice(1).join('/');
+                                if (count < expectedWeeklyCount) {
+                                    var diff = expectedWeeklyCount - count;
+                                    shortIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（あと ' + diff + '個 不足）');
+                                } else if (count > expectedWeeklyCount) {
+                                    var diff = count - expectedWeeklyCount;
+                                    overIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（' + diff + '個 多いご注文）');
+                                }
+                            });
+
+                            if (shortIssues.length > 0) {
+                                showModalAsync('【注文個数が不足している週があります】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n\n' + shortIssues.join('\n') + '\n\n各週 ' + expectedWeeklyCount + '個 になるよう、追加のご注文をお願いいたします。🙇‍♂️', 'alert');
+                                return;
+                            } else if (overIssues.length > 0) {
+                                planCheckWarning = '【注文個数のご確認】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されていますが、以下の週で多く注文されています：\n\n' + overIssues.join('\n') + '\n\n押し間違い等はございませんか？\n\n';
+                            }
+                        }
+                    }
+                }
+
+                // 日毎の個数チェック (1日に2個以上あれば警告)
+                var confirmMsg = '';
+                if (planCheckWarning) {
+                    confirmMsg = planCheckWarning + 'この内容で注文を確定しますか？';
+                } else if (applicablePrice !== null) {
+                    confirmMsg = '適用単価は ' + applicablePrice + '円となります。' + avgDetailsText + '\nこの内容で注文を確定しますか？';
+                } else {
+                    confirmMsg = orders.length + '件の注文を確定しますか？';
+                }
+
+                if (multipleOrderDates.length > 0) {
+                    var priceText = '';
+                    if (applicablePrice !== null) {
+                        priceText = '\n\n適用単価は ' + applicablePrice + '円となります。' + avgDetailsText + '\nこの内容で注文を確定しますか？';
+                    } else {
+                        priceText = '\n\nよろしいですか？';
+                    }
+                    
+                    var warningTitle = (applicablePrice !== null) ? 
+                        '【確認】以下の日付で複数個（2個以上）の注文があります。押し間違いがないかご確認ください：\n' :
+                        '【確認】以下の日付で2個以上の注文があります：\n';
+
+                    var basePlanText = planCheckWarning ? planCheckWarning + '\n' : '';
+                    confirmMsg = basePlanText + warningTitle +
+                        multipleOrderDates.join('\n') +
+                        priceText;
+                }
+
+                showModalAsync(confirmMsg, 'confirm').then(function (isConfirmed) {
+                    if (!isConfirmed) {
+                        return;
+                    }
+
+                    // 重複チェック
+                    var duplicateDates = [];
+                    orders.forEach(function (o) {
+                        var checkDate = normalizeDateString(o.date);
+                        var hasDuplicate = window._currentUserHistory.some(function (h) {
+                            return normalizeDateString(h.OrderDate) === checkDate;
+                        });
+                        if (hasDuplicate && duplicateDates.indexOf(checkDate) === -1) {
+                            var displayDate = o.date.split('/').slice(1).join('/'); // MM/DD
+                            duplicateDates.push(displayDate);
+                        }
+                    });
+
+                    var decisionPromise;
+                    if (duplicateDates.length > 0) {
+                        var dupMsg = '【重複確認】<br>' +
+                            '以下の日付は、すでに過去の注文が存在します：<br>' +
+                            '<strong style="color:#e63946;">' + duplicateDates.join(', ') + '</strong><br><br>' +
+                            '・<strong>上書き(更新)</strong>：過去の同日注文を自動削除し、今回の注文に差し替えます。<br>' +
+                            '・<strong>追加購入</strong>：過去の注文を残したまま、今回の注文を追加します。';
+                        decisionPromise = showModalAsync(dupMsg, 'three_button');
+                    } else {
+                        decisionPromise = Promise.resolve('append');
+                    }
+
+                    decisionPromise.then(function (choice) {
+                        if (choice === 'cancel') {
+                            return;
+                        }
+
+                        var isOverwrite = (choice === 'overwrite');
+
+                        // ボタンを無効化して処理中を表示
+                        btn.disabled = true;
+                        btn.textContent = '送信中...';
+                        btn.style.backgroundColor = '#ccc';
+
+                        // 最終防衛線: 提出直前に lineUserId が無ければ再取得を試みる
+                        new Promise(function (resolveLastChance) {
+                            if (lineUserId) {
+                                resolveLastChance();
+                                return;
+                            }
+                            if (typeof liff !== 'undefined') {
+                                try {
+                                    var ctx = liff.getContext();
+                                    if (ctx && ctx.userId) lineUserId = ctx.userId;
+                                } catch (e) { }
+
+                                try {
+                                    if (!lineUserId && liff.getDecodedIDToken) {
+                                        var dec = liff.getDecodedIDToken();
+                                        if (dec && dec.sub) lineUserId = dec.sub;
+                                    }
+                                } catch (e) { }
+
+                                if (!lineUserId && liff.isLoggedIn && liff.isLoggedIn()) {
+                                    liff.getProfile().then(function (p) {
+                                        if (p && p.userId) lineUserId = p.userId;
+                                        resolveLastChance();
+                                    }).catch(function (e) {
+                                        resolveLastChance();
+                                    });
+                                    return;
+                                }
+                            }
+                            resolveLastChance();
+                        }).then(function () {
+                            // ロード画面も出す
+                            document.getElementById('loading').style.display = 'flex';
+                            document.getElementById('loadingText').innerText = '送信しています...';
+
+                            // 送信データ量を極限まで減らすため、注文リストを "YYYYMMDD:productId:quantity" 形式の圧縮文字列にする
+                            var compressedList = orders.map(function(o) {
+                                var cleanDate = o.date.replace(/\//g, '');
+                                return cleanDate + ':' + o.productId + ':' + o.quantity;
+                            }).join(',');
+
+                            var orderData = {
+                                category: category,
+                                userId: userId,
+                                userName: userName,
+                                lineId: lineUserId,
+                                compressed: compressedList,
+                                isOverwrite: isOverwrite
+                            };
+                        gasJsonpFetch('api=submitOrders&data=' + encodeURIComponent(JSON.stringify(orderData)))
+                            .then(function (rawRes) {
+                                var res = rawRes;
+                                if (typeof rawRes === 'string') {
+                                    try { res = JSON.parse(rawRes); } catch (e) { }
+                                }
+                                console.log('submitOrders success:', JSON.stringify(res));
+                                document.getElementById('loading').style.display = 'none';
+
+                                if (!res || res.success === false) {
+                                    showModalAsync('エラー: ' + (res ? res.message : '不明'), 'alert');
+                                    btn.disabled = false;
+                                    btn.textContent = '注文を確定する';
+                                    btn.style.backgroundColor = '';
+                                    return;
+                                }
+
+                                // --- サマリー作成（HTML表示用と共有用テキスト） ---
+                                var summaryHtml = '<div style="text-align:left; font-size:14px; margin-top:10px; border:1px solid #eee; padding:10px; border-radius:8px; background:#fafafa;">';
+                                summaryHtml += '<strong>注文リスト：</strong><br>';
+                                var shareText = "【パン注文控え】\n選手名: " + userName + "\n------------------\n";
+
+                                // 日付順に並び替え
+                                var sortedOrders = orders.sort(function (a, b) {
+                                    return a.date.localeCompare(b.date);
+                                });
+                                sortedOrders.forEach(function (order) {
+                                    if (order.quantity > 0) {
+                                        var shortDate = order.date.split('/').slice(1).join('/'); // MM/DD
+                                        summaryHtml += '・' + shortDate + '：' + order.productName + ' (' + order.quantity + '個)<br>';
+                                        shareText += "・" + shortDate + "：" + order.productName + " (" + order.quantity + "個)\n";
+                                    }
+                                });
+                                summaryHtml += '</div>';
+                                shareText += "------------------\nご注文ありがとうございます！";
+
+                                // サマリー表示後に画面自体を「完了」に置き換える処理
+                                function showCompletionScreen() {
+                                    var formArea = document.querySelector('.container');
+                                    var headerArea = document.getElementById('mainHeader');
+                                    if (formArea) formArea.style.display = 'none';
+                                    if (headerArea) headerArea.style.display = 'none';
+                                    document.body.innerHTML = '<div style="text-align:center; padding: 40px 20px; font-family: sans-serif;">' +
+                                        '<div style="font-size: 50px; color: #4CAF50; margin-bottom: 20px;">✓</div>' +
+                                        '<h2 style="color: #333; margin-bottom: 10px;">注文が完了しました</h2>' +
+                                        '<p style="color: #666; font-size: 16px; line-height: 1.5;">ご協力ありがとうございます。<br>この画面は右上の「×」等で閉じて終了してください。</p>' +
+                                        '</div>';
+                                }
+
+                                var isInLiff = false;
+                                try {
+                                    if (typeof liff !== 'undefined' && liff.isInClient && liff.isInClient()) {
+                                        isInLiff = true;
+                                    }
+                                } catch (liffErr) {
+                                    console.error("LIFF check error:", liffErr);
+                                }
+
+                                if (isInLiff) {
+                                    showModalAsync('注文が完了しました！<br>' + summaryHtml, 'success', shareText).then(function () {
+                                        showCompletionScreen();
+                                        try { liff.closeWindow(); } catch (e) { }
+                                    });
+                                } else {
+                                    // ハイブリッド型
+                                    showModalAsync('注文が完了しました！<br>' + summaryHtml, 'success', shareText).then(function () {
+                                        showCompletionScreen();
+                                    });
+                                }
+                            })
+                            .catch(function (err) {
+                                document.getElementById('loading').style.display = 'none';
+                                showModalAsync('送信エラー: ' + err.message, 'alert');
+                                // エラー時はボタンを戻す
+                                btn.disabled = false;
+                                btn.textContent = '注文を確定する';
+                                btn.style.backgroundColor = '';
+                            });
+                    });
+                });
+            });
+            } catch (fatalError) {
+                showModalAsync('システムエラー: ' + fatalError.message, 'alert');
+                var btn2 = document.querySelector('.submit-btn');
+                if (btn2) {
+                    btn2.disabled = false;
+                    btn2.textContent = '注文を確定する';
+                    btn2.style.backgroundColor = '';
+                }
+            }
+        }
+
+        // --- 注文履歴画面の構築 ---
+        function renderHistoryView() {
+            var container = document.getElementById('calendarContainer');
+            var footer = document.querySelector('footer');
+            var cycleArea = document.getElementById('cycleSelectArea');
+
+            // 注文用のUIを隠す
+            if (footer) footer.style.display = 'none';
+            if (cycleArea) cycleArea.style.display = 'none';
+
+            container.innerHTML = '<div style="text-align:center; padding: 20px;"><div class="spinner" style="margin: 0 auto 10px;"></div>Please wait...</div>';
+
+            // 引数の準備
+            var storedUserId = null;
+            try {
+                var s = JSON.parse(localStorage.getItem('walpass_bound_user') || 'null');
+                if (s) storedUserId = s.userId;
+            } catch (e) { console.error(e); }
+
+            var debugLineId = (typeof lineUserId !== 'undefined' ? lineUserId : null);
+            console.log('renderHistoryView called. lineUserId:', debugLineId, 'storedUserId:', storedUserId);
+
+            var historyParams = 'api=getOrderHistory';
+            if (debugLineId) historyParams += '&lineId=' + encodeURIComponent(debugLineId);
+            if (storedUserId) historyParams += '&userId=' + encodeURIComponent(storedUserId);
+
+            gasJsonpFetch(historyParams)
+                .then(function (res) {
+                    try {
+                        console.log('getOrderHistory result:', JSON.stringify(res));
+                        if (!res || !res.success) {
+                            var msg = (res && res.message) ? res.message : "履歴データの取得に失敗しました。";
+                            container.innerHTML = '<div style="padding:20px; text-align:center; color:red;">' + msg + '</div>';
+                            return;
+                        }
+
+                        if (!res.orders || res.orders.length === 0) {
+                            container.innerHTML = '<div style="padding:40px 20px; text-align:center; color:#888;">直近2ヶ月の注文履歴はありません。</div>';
+                            return;
+                        }
+
+                        // 月ごとにグループ化
+                        var grouped = {};
+                        res.orders.forEach(function (ord) {
+                            var d = new Date(ord.OrderDate);
+                            var monthKey = d.getFullYear() + "年" + (d.getMonth() + 1) + "月";
+                            if (!grouped[monthKey]) grouped[monthKey] = { orders: [], totalQty: 0, totalAmount: 0 };
+                            grouped[monthKey].orders.push(ord);
+                            grouped[monthKey].totalQty += (parseInt(ord.Quantity) || 0);
+                            
+                            // 金額の加算
+                            var qty = parseInt(ord.Quantity) || 0;
+                            var price = Number(ord.Price || ord.price) || 0;
+                            grouped[monthKey].totalAmount += (qty * price);
+                        });
+
+                        var html = '<h2 style="text-align:center; font-size:1.2rem; margin-bottom:20px;">注文履歴（直近2ヶ月）</h2>';
+
+                        // 月ごとにカードを作成
+                        var months = Object.keys(grouped).sort().reverse(); // 新しい月順
+                        months.forEach(function (month) {
+                            var data = grouped[month];
+                            html += '<div class="history-card">';
+                            html += '<div class="history-month"><span>' + month + '</span><span style="font-size:0.9rem; color:#666;">' + data.orders.length + '件</span></div>';
+
+                            data.orders.forEach(function (ord) {
+                                var d = new Date(ord.OrderDate);
+                                var dateShort = (d.getMonth() + 1) + "/" + d.getDate();
+                                var qty = parseInt(ord.Quantity) || 0;
+                                var price = Number(ord.Price || ord.price) || 0;
+                                var itemAmount = qty * price;
+                                
+                                html += '<div class="history-item">';
+                                html += '<span class="history-date">' + dateShort + '</span>';
+                                html += '<span class="history-name">' + (ord.ProductName || '不明な商品') + '</span>';
+                                html += '<span class="history-qty">' + qty + '個 (¥' + itemAmount.toLocaleString() + ')</span>';
+                                html += '</div>';
+                            });
+
+                            html += '<div class="history-total-row">合計 <span class="history-total-amount">' + data.totalQty + ' 個 / ¥' + data.totalAmount.toLocaleString() + '</span></div>';
+                            html += '</div>';
+                        });
+
+                        // 戻るボタン
+                        html += '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\'; this.parentNode.querySelector(\'h2\').remove(); this.nextElementSibling.remove(); this.remove();" style="width:100%; padding:15px; background:#888; color:white; border:none; border-radius:8px; font-weight:bold; margin-top:10px; margin-bottom:10px;">注文画面に戻る</button>';
+
+                        // ログアウト（リセット）ボタン - テストや切り替え用
+                        html += '<button onclick="if(confirm(\'ログアウトしてユーザー登録を解除しますか？\')){localStorage.clear(); localStorage.setItem(\'walpass_logged_out\',\'1\'); var base=window.location.href.split(\'?\')[0]; window.location.href=base+\'?mode=register\' + (urlTeamCode ? \'&team=\'+urlTeamCode : \'\')}" style="width:100%; padding:15px; background:#e74c3c; color:white; border:none; border-radius:8px; font-weight:bold; margin-bottom:40px;">ログアウト（別の名前で登録し直す）</button>';
+
+                        container.innerHTML = html;
+                    } catch (err) {
+                        console.error(err);
+                        container.innerHTML = '<div style="padding:20px; text-align:center; color:red;">表示処理中にエラーが発生しました: ' + err.message + '</div>';
+                    }
+                })
+                .catch(function (err) {
+                    container.innerHTML = '<div style="padding:20px; text-align:center; color:red;">通信エラーが発生しました: ' + err.message + '</div>';
+                });
+        }
+    </script>
+</body>
