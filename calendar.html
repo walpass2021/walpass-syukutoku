@@ -301,6 +301,7 @@
 
         let currentCalendarId = null;
         let currentTeamCode = null;
+        let _loadTimer = null;
 
         /**
          * URLパラメータを取得するユーティリティ（liff.state, search, hash 対応）
@@ -337,55 +338,71 @@
         }
 
         /**
-         * 初期化：まずチーム設定（ロゴや色）を取得する
+         * 初期化：1回のリクエストでチーム設定とカレンダー予定をまとめて高速取得
          */
         function init() {
-            const team = getTeamParam();
-            if (!team) {
-                alert("エラー：URLにチームコードが含まれていません。（?team=xxx）");
-                return;
-            }
+            const team = getTeamParam() || "SHK";
             currentTeamCode = team;
             try { localStorage.setItem('walpass_team_code', team); } catch(e) {}
 
-            // JSONPでチーム設定を取得
+            // 10秒タイムアウト検出
+            _loadTimer = setTimeout(function() {
+                var sp = document.getElementById('loading-spinner');
+                if (sp && sp.style.display !== 'none') {
+                    sp.innerHTML = '<div style="padding:40px 20px; text-align:center;">' +
+                        '<h3 style="color:#e53935; margin-bottom:10px;">⚠️ 読み込みに時間がかかっています</h3>' +
+                        '<p style="color:#666; font-size:0.9rem; line-height:1.6;">カレンダー情報の取得に失敗したか、サーバーの応答が遅延しています。<br>カレンダーIDがスプレッドシートの「メニュー設定」シートに登録されているかご確認ください。</p>' +
+                        '<button onclick="location.reload()" style="margin-top:15px; margin-right:10px; padding:10px 20px; border-radius:8px; border:none; background:#e53935; color:#fff; font-weight:bold; cursor:pointer;">再読み込み</button>' +
+                        '<button onclick="goBackToOrder()" style="margin-top:15px; padding:10px 20px; border-radius:8px; border:none; background:#6c757d; color:#fff; font-weight:bold; cursor:pointer;">注文画面に戻る</button>' +
+                        '</div>';
+                }
+            }, 10000);
+
+            // JSONPでカレンダーデータ（設定＋予定）を一括取得
             const script = document.createElement('script');
-            script.src = `${GAS_WEB_APP_URL}?api=getUserTeamSettings&teamCode=${encodeURIComponent(team)}&callback=onSettingsLoaded`;
+            script.src = `${GAS_WEB_APP_URL}?api=getCalendarData&teamCode=${encodeURIComponent(team)}&callback=onCalendarDataLoaded`;
+            script.onerror = function() {
+                clearTimeout(_loadTimer);
+                document.getElementById('loading-spinner').innerHTML = '<div style="padding:40px 20px; text-align:center;">' +
+                    '<h3 style="color:#e53935;">通信エラー</h3>' +
+                    '<p style="color:#666;">カレンダーデータの通信に失敗しました。</p>' +
+                    '<button onclick="goBackToOrder()" style="margin-top:15px; padding:10px 20px; border-radius:8px; border:none; background:#888; color:#fff;">注文画面に戻る</button>' +
+                    '</div>';
+            };
             document.body.appendChild(script);
         }
 
         /**
-         * チーム設定読み込み完了時の処理
+         * カレンダーデータ読み込み完了時の処理
          */
-        function onSettingsLoaded(data) {
-            if (!data || !data.calendarId) {
-                document.getElementById('loading-spinner').innerHTML = '<div style="padding:40px; text-align:center;"><h3>読込エラー</h3><p>カレンダーIDが設定されていません。<br>（スプレッドシートの「メニュー設定」シートでカレンダーIDをご確認ください）</p><button onclick="goBackToOrder()" style="margin-top:15px; padding:10px 20px; border-radius:8px; border:none; background:#888; color:#fff;">注文画面に戻る</button></div>';
+        function onCalendarDataLoaded(data) {
+            clearTimeout(_loadTimer);
+
+            if (!data || !data.success) {
+                var errMsg = (data && data.error) ? data.error : "カレンダー情報の取得に失敗しました。";
+                document.getElementById('loading-spinner').innerHTML = '<div style="padding:40px 20px; text-align:center;">' +
+                    '<h3 style="color:#e53935;">読込エラー</h3><p style="color:#666;">' + errMsg + '</p>' +
+                    '<button onclick="goBackToOrder()" style="margin-top:15px; padding:10px 20px; border-radius:8px; border:none; background:#888; color:#fff;">注文画面に戻る</button>' +
+                    '</div>';
                 return;
             }
 
-            currentCalendarId = data.calendarId;
-
-            // デザインの反映
-            const brandColor = data.themeColor || '#e53935';
-            document.documentElement.style.setProperty('--brand-color', brandColor);
-            
-            if (data.logoUrl) {
-                const logo = document.getElementById('team-logo');
-                logo.src = data.logoUrl;
-                logo.style.display = 'block';
+            var settings = data.teamSettings;
+            if (settings) {
+                const brandColor = settings.themeColor || '#e53935';
+                document.documentElement.style.setProperty('--brand-color', brandColor);
+                
+                if (settings.logoUrl) {
+                    const logo = document.getElementById('team-logo');
+                    logo.src = settings.logoUrl;
+                    logo.style.display = 'block';
+                }
             }
 
-            // 次にイベント（予定）データを取得
-            fetchEventsData();
-        }
+            currentCalendarId = data.calendarId;
+            var events = data.events || [];
 
-        /**
-         * 予定データ (Events) を取得する
-         */
-        function fetchEventsData() {
-            const script = document.createElement('script');
-            script.src = `${GAS_WEB_APP_URL}?api=getCalendarEvents&calendarId=${encodeURIComponent(currentCalendarId)}&callback=renderFullCalendar`;
-            document.body.appendChild(script);
+            renderFullCalendar(events);
         }
 
         /**
