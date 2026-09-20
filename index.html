@@ -972,6 +972,7 @@
                 var params = 'api=getInitialData';
                 if (lineUserId) params += '&lineId=' + encodeURIComponent(lineUserId);
                 if (urlTeamCode) params += '&teamCode=' + encodeURIComponent(urlTeamCode);
+                if (urlMode) params += '&mode=' + encodeURIComponent(urlMode);
 
                 gasJsonpFetch(params)
                     .then(function (data) {
@@ -997,6 +998,7 @@
             PRODUCTS = data.products;
             USERS = data.users;
             RULES = data.rules;
+            window._cachedInitialData = data;
             window._isStripeTestMode = data.isStripeTestMode || false;
             window._cachedAvailableTeams = data.availableTeams || [];
             window._cachedTeamPoints = data.teamPoints || 0;
@@ -1069,7 +1071,7 @@
                 return;
             }
 
-            // 1. 既に紐付け済みの場合はカレンダーを表示
+            // 1. 既に紐付け済みの場合はカレンダーまたは履歴を表示
             if (data.isBound && USERS.length > 0) {
                 var boundUser = USERS[0];
 
@@ -1100,6 +1102,15 @@
                         }
                     }
                 } catch (e) { }
+            }
+
+            // 1.8. 履歴モードで未紐付けの場合は、他選手の選択肢を見せず案内を表示（プライバシー保護）
+            if (urlMode === 'history') {
+                document.querySelector('.container').style.display = 'block';
+                document.querySelector('.user-select-area').style.display = 'none';
+                renderHistoryView();
+                document.getElementById('loading').style.display = 'none';
+                return;
             }
 
             // 2. 未紐付けの場合
@@ -2716,7 +2727,7 @@
             }
         }
 
-        // --- 注文履歴画面の構築（本人専用・完全プライバシー保護） ---
+        // --- 注文履歴画面の構築（本人専用・完全プライバシー保護・超高速即時描画） ---
         function renderHistoryView() {
             var container = document.getElementById('calendarContainer');
             var footer = document.querySelector('footer');
@@ -2725,8 +2736,6 @@
             // 注文用のUIを隠す
             if (footer) footer.style.display = 'none';
             if (cycleArea) cycleArea.style.display = 'none';
-
-            container.innerHTML = '<div style="text-align:center; padding: 30px 20px;"><div class="spinner" style="margin: 0 auto 12px;"></div>最新の注文履歴を取得中...</div>';
 
             // ユーザー特定（LINE ID または 端末の連携済み情報）
             var storedUserId = null;
@@ -2749,6 +2758,34 @@
                 storedUserId = storedUserId || window._cachedInitialData.users[0].UserID || window._cachedInitialData.users[0]['ユーザーID'];
                 storedUserName = storedUserName || window._cachedInitialData.users[0].Name || window._cachedInitialData.boundUserName;
             }
+
+            // 初回通信（getInitialData）で既に注文履歴が取得できている場合は即時表示（二重通信なし・0秒描画）
+            if (window._cachedInitialData && Array.isArray(window._cachedInitialData.orders)) {
+                var initialOrders = window._cachedInitialData.orders;
+                var uName = window._cachedInitialData.boundUserName || storedUserName;
+
+                if (initialOrders.length > 0) {
+                    displayHistoryOrders(initialOrders, uName);
+                    return;
+                } else if (window._cachedInitialData.isBound || storedUserId || storedUserName) {
+                    var uNameDisplay = uName || "選手";
+                    container.innerHTML = '<div style="padding:30px 15px; text-align:center; background:#fff; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:15px;">' +
+                        '<h3 style="font-size:1.1rem; margin-top:0; color:#0f2942;">📋 ' + uNameDisplay + ' 選手の注文履歴</h3>' +
+                        '<p style="font-size:0.9rem; color:#888; margin-bottom:20px;">直近の注文履歴はまだありません。</p>' +
+                        '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:#fff; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
+                        '</div>';
+                    return;
+                } else {
+                    container.innerHTML = '<div style="background:#fff; border-radius:14px; padding:30px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center; margin-bottom:15px;">' +
+                        '<h3 style="color:#0f2942; margin-top:0; font-size:1.1rem;">⚠️ ご利用案内</h3>' +
+                        '<p style="color:#666; font-size:0.9rem; line-height:1.6; margin-bottom:20px;">ユーザー連携が確認できませんでした。<br>初回の方は、まず「パンを注文する」画面からお名前を登録してご注文ください。</p>' +
+                        '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
+                        '</div>';
+                    return;
+                }
+            }
+
+            container.innerHTML = '<div style="text-align:center; padding: 30px 20px;"><div class="spinner" style="margin: 0 auto 12px;"></div>最新の注文履歴を取得中...</div>';
 
             var debugLineId = (typeof lineUserId !== 'undefined' ? lineUserId : null);
 
