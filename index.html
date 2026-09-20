@@ -2716,7 +2716,7 @@
             }
         }
 
-        // --- 注文履歴画面の構築 ---
+        // --- 注文履歴画面の構築（本人専用・完全プライバシー保護） ---
         function renderHistoryView() {
             var container = document.getElementById('calendarContainer');
             var footer = document.querySelector('footer');
@@ -2726,9 +2726,9 @@
             if (footer) footer.style.display = 'none';
             if (cycleArea) cycleArea.style.display = 'none';
 
-            container.innerHTML = '<div style="text-align:center; padding: 20px;"><div class="spinner" style="margin: 0 auto 10px;"></div>Please wait...</div>';
+            container.innerHTML = '<div style="text-align:center; padding: 30px 20px;"><div class="spinner" style="margin: 0 auto 12px;"></div>最新の注文履歴を取得中...</div>';
 
-            // ユーザー特定（LINE ID, 選択中のユーザー, ローカルストレージ, 初期ロードデータから全方位で解決）
+            // ユーザー特定（LINE ID または 端末の連携済み情報）
             var storedUserId = null;
             var storedUserName = null;
 
@@ -2745,29 +2745,12 @@
                 storedUserName = storedUserName || window._cachedBoundUser.name;
             }
 
-            if (window._cachedInitialData) {
-                if (window._cachedInitialData.isBound && window._cachedInitialData.users && window._cachedInitialData.users.length > 0) {
-                    storedUserId = storedUserId || window._cachedInitialData.users[0].UserID;
-                    storedUserName = storedUserName || window._cachedInitialData.users[0].Name || window._cachedInitialData.boundUserName;
-                }
-            }
-
-            var userSelect = document.getElementById('userSelect');
-            if (userSelect && userSelect.value) {
-                storedUserId = storedUserId || userSelect.value;
-                var selOpt = userSelect.options[userSelect.selectedIndex];
-                if (selOpt && selOpt.dataset && selOpt.dataset.kanjiName) {
-                    storedUserName = storedUserName || selOpt.dataset.kanjiName;
-                }
+            if (window._cachedInitialData && window._cachedInitialData.isBound && window._cachedInitialData.users && window._cachedInitialData.users.length > 0) {
+                storedUserId = storedUserId || window._cachedInitialData.users[0].UserID || window._cachedInitialData.users[0]['ユーザーID'];
+                storedUserName = storedUserName || window._cachedInitialData.users[0].Name || window._cachedInitialData.boundUserName;
             }
 
             var debugLineId = (typeof lineUserId !== 'undefined' ? lineUserId : null);
-
-            // キャッシュ内にすでに履歴データがあれば即時描画
-            if (window._cachedInitialData && window._cachedInitialData.orders && window._cachedInitialData.orders.length > 0) {
-                displayHistoryOrders(window._cachedInitialData.orders, storedUserName);
-                return;
-            }
 
             var historyParams = 'api=getOrderHistory';
             if (debugLineId) historyParams += '&lineId=' + encodeURIComponent(debugLineId);
@@ -2778,19 +2761,22 @@
                 .then(function (res) {
                     try {
                         if (!res || !res.success) {
-                            var msg = (res && res.message) ? res.message : "履歴データの取得に失敗しました。";
-                            container.innerHTML = '<div style="padding:30px 20px; text-align:center; color:#c53030; font-weight:bold;">' + msg + '</div>' +
-                                '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#6c757d; color:white; border:none; border-radius:10px; font-weight:bold;">注文画面へ進む</button>';
+                            var errMsg = (res && res.message) ? res.message : "ユーザー連携が確認できませんでした。";
+                            container.innerHTML = '<div style="background:#fff; border-radius:14px; padding:30px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center; margin-bottom:15px;">' +
+                                '<h3 style="color:#0f2942; margin-top:0; font-size:1.1rem;">⚠️ ご利用案内</h3>' +
+                                '<p style="color:#666; font-size:0.9rem; line-height:1.6; margin-bottom:20px;">' + errMsg + '<br>初回の方は、まず「パンを注文する」画面からお名前を登録してご注文ください。</p>' +
+                                '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
+                                '</div>';
                             return;
                         }
 
                         if (!res.orders || res.orders.length === 0) {
                             var uNameDisplay = res.userName || storedUserName || "選手";
-                            container.innerHTML = '<div style="padding:40px 20px; text-align:center; color:#666;">' +
-                                '<h3 style="font-size:1.1rem; margin-bottom:10px;">📋 ' + uNameDisplay + ' 選手の注文履歴</h3>' +
-                                '<p style="font-size:0.9rem; color:#888;">直近の注文履歴はまだありません。</p>' +
-                                '</div>' +
-                                '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:#fff; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>';
+                            container.innerHTML = '<div style="padding:30px 15px; text-align:center; background:#fff; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:15px;">' +
+                                '<h3 style="font-size:1.1rem; margin-top:0; color:#0f2942;">📋 ' + uNameDisplay + ' 選手の注文履歴</h3>' +
+                                '<p style="font-size:0.9rem; color:#888; margin-bottom:20px;">直近の注文履歴はまだありません。</p>' +
+                                '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:#fff; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
+                                '</div>';
                             return;
                         }
 
