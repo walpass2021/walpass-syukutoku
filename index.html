@@ -692,7 +692,43 @@
         var cycleSelection = []; // { id: productId, name: productName } の配列
         var lineUserId = null; // LIFFから取得する LINE ID
         var urlTeamCode = null; // URLから取得するチーム記号
-        var urlMode = null; // 画面モード（通常 or history）
+        var urlMode = null; // 画面モード（通常 or history or calendar）
+
+        function parseAllParams() {
+            var res = { team: null, mode: null };
+            function parseQuery(q) {
+                if (!q) return;
+                q = q.replace(/^[?#]/, '');
+                if (q.indexOf('?') !== -1) {
+                    q = q.substring(q.indexOf('?') + 1);
+                }
+                var pairs = q.split('&');
+                for (var i = 0; i < pairs.length; i++) {
+                    var parts = pairs[i].split('=');
+                    if (parts.length === 2) {
+                        var k = decodeURIComponent(parts[0]).trim();
+                        var v = decodeURIComponent(parts[1]).trim();
+                        if (k === 'liff.state') {
+                            parseQuery(v);
+                        } else if (k === 'team' && v && v !== 'null' && v !== 'undefined') {
+                            res.team = v;
+                        } else if (k === 'mode' && v && v !== 'null' && v !== 'undefined') {
+                            res.mode = v;
+                        }
+                    }
+                }
+            }
+
+            if (window.location.search) parseQuery(window.location.search);
+            if (window.location.hash) parseQuery(window.location.hash);
+            try {
+                if (typeof liff !== "undefined" && liff.state) parseQuery(liff.state);
+            } catch(e) {}
+            if (typeof _gasInjectedTeam !== "undefined" && _gasInjectedTeam) res.team = _gasInjectedTeam;
+            if (typeof _gasInjectedMode !== "undefined" && _gasInjectedMode) res.mode = _gasInjectedMode;
+
+            return res;
+        }
 
         // 初期化
         window.onload = function () {
@@ -700,32 +736,12 @@
                 const loadingText = document.getElementById('loadingText');
                 loadingText.innerText = "初期化中...";
 
-                // 1. パラメータ取得（3段構え）
-                // 優先順位: GAS注入値 → LIFF state → localStorage
+                // 1. パラメータ取得（liff.state, search, hash, injected を完全網羅）
+                var parsed = parseAllParams();
+                urlTeamCode = parsed.team;
+                urlMode = parsed.mode;
 
-                // (A) GAS側からappendで注入されたグローバル変数を読む
-                urlTeamCode = (typeof _gasInjectedTeam !== "undefined" && _gasInjectedTeam) ? _gasInjectedTeam : "";
-                urlMode = (typeof _gasInjectedMode !== "undefined" && _gasInjectedMode) ? _gasInjectedMode : "";
-
-                // (B) LIFF stateからの上書き（リッチメニュー経由時はこちらにパラメータが入る）
-                try {
-                    var rawState = "";
-                    if (typeof liff !== "undefined" && liff.state) {
-                        rawState = liff.state;
-                    }
-                    var stateParams = new URLSearchParams(rawState.replace(/^[^?]*\?/, ''));
-                    if (stateParams.has('team')) urlTeamCode = stateParams.get('team');
-                    if (stateParams.has('mode')) urlMode = stateParams.get('mode');
-                } catch (stateErr) {
-                    // liff.stateの解析に失敗しても継続
-                }
-
-                // (C) URLの直接パラメータも念のためチェック
-                var params = new URLSearchParams(window.location.search);
-                if (params.has('team')) urlTeamCode = params.get('team');
-                if (params.has('mode')) urlMode = params.get('mode');
-
-                // 2. localStorageからの復元（チームコードのみ、modeはURL優先）
+                // 2. localStorageからの復元
                 if (urlTeamCode && urlTeamCode !== "null" && urlTeamCode !== "") {
                     localStorage.setItem('walpass_team_code', urlTeamCode);
                 } else {
@@ -735,6 +751,13 @@
                 // 'null' 文字列などの正規化
                 if (urlTeamCode === 'null' || urlTeamCode === '' || urlTeamCode === 'undefined') urlTeamCode = null;
                 if (urlMode === 'null' || urlMode === '' || urlMode === 'undefined') urlMode = null;
+
+                // ★ カレンダーモードが指定されている場合は、カレンダー専用ページへ即座にリダイレクト
+                if (urlMode === 'calendar') {
+                    var calUrl = 'calendar.html' + (urlTeamCode ? '?team=' + encodeURIComponent(urlTeamCode) : '');
+                    window.location.replace(calUrl);
+                    return;
+                }
 
                 // イベントリスナーの登録
                 document.getElementById('categorySelect').addEventListener('change', function () {
@@ -759,11 +782,26 @@
                 proceedToFetchData();
 
                 // LIFFの初期化（バックグラウンドで並列実行）
-                var targetLiffId = (typeof _gasInjectedLiffId !== "undefined" && _gasInjectedLiffId) ? _gasInjectedLiffId : "2009233341-VFgBMdDu";
+                var targetLiffId = (typeof _gasInjectedLiffId !== "undefined" && _gasInjectedLiffId) ? _gasInjectedLiffId : "2011664893-Ei6o797M";
 
                 liff.init({
                     liffId: targetLiffId
                 }).then(function () {
+                    try {
+                        var p2 = parseAllParams();
+                        if (!urlMode && p2.mode) urlMode = p2.mode;
+                        if (!urlTeamCode && p2.team) {
+                            urlTeamCode = p2.team;
+                            localStorage.setItem('walpass_team_code', urlTeamCode);
+                        }
+
+                        if (urlMode === 'calendar') {
+                            var calUrl = 'calendar.html' + (urlTeamCode ? '?team=' + encodeURIComponent(urlTeamCode) : '');
+                            window.location.replace(calUrl);
+                            return;
+                        }
+                    } catch(pe) {}
+
                     try {
                         var ctx = liff.getContext();
                         if (ctx && ctx.userId) {
@@ -801,32 +839,21 @@
         };
 
         function proceedToFetchData() {
-            // liff.init() 完了後にliff.stateを再解析（LIFF経由の場合、ここでパラメータが取得できる）
-            try {
-                if (typeof liff !== "undefined" && liff.state) {
-                    var stateStr = liff.state;
-                    // liff.state は "?team=KV&mode=history" や "team=KV&mode=history" の形式
-                    var sp = new URLSearchParams(stateStr.replace(/^[^?]*\?/, ''));
-                    if (sp.has('team') && sp.get('team')) {
-                        urlTeamCode = sp.get('team');
-                        localStorage.setItem('walpass_team_code', urlTeamCode);
-                    }
-                    if (sp.has('mode') && sp.get('mode')) {
-                        urlMode = sp.get('mode');
-                    }
-                }
-            } catch (e) {
-                // 解析失敗時は既存の値を維持
+            var p = parseAllParams();
+            if (p.team) {
+                urlTeamCode = p.team;
+                localStorage.setItem('walpass_team_code', urlTeamCode);
+            }
+            if (p.mode) {
+                urlMode = p.mode;
             }
 
-            // urlTeamCodeが文字列の 'null' や空文字の場合は完全に null に正規化する
             if (urlTeamCode === 'null' || urlTeamCode === '') {
                 urlTeamCode = null;
             }
             if (urlMode === 'null' || urlMode === '') {
                 urlMode = null;
             }
-
 
             var loadingText = document.getElementById('loadingText');
             if (loadingText) {

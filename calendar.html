@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>配送カレンダー | WALPASS</title>
+    
+    <!-- FullCalendar & dependencies (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ja.js"></script>
+
+    <style>
+        /* 
+         * デザイン・テーマ設定
+         */
+        :root {
+            --brand-color: #e53935; /* チーム設定から動的に上書きされます */
+            --bg-color: #f8fafb;
+            --card-bg: #ffffff;
+            --text-color: #2c3e50;
+            --header-gradient: linear-gradient(135deg, var(--brand-color), #000);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Inter", "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        /* ヘッダーセクション */
+        header {
+            background: linear-gradient(135deg, var(--brand-color), #fff);
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        #team-logo {
+            max-height: 48px;
+            width: auto;
+            display: none; /* ロード後に表示 */
+        }
+
+        .header-title {
+            color: #ffffff;
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .container {
+            padding: 20px 12px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* 案内バッジ */
+        .info-badge-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .info-badge {
+            display: inline-block;
+            background: #ffffff;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+
+        .info-badge span {
+            color: var(--brand-color);
+        }
+
+        /* カレンダーを包むカード */
+        .calendar-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 18px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.07);
+            border: 1px solid rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        /* FullCalendar のスタイルの微調整 */
+        .fc {
+            --fc-button-bg-color: var(--brand-color);
+            --fc-button-border-color: var(--brand-color);
+            --fc-button-hover-bg-color: #222222;
+            --fc-button-hover-border-color: #222222;
+            --fc-button-active-bg-color: #000000;
+            --fc-button-active-border-color: #000000;
+            --fc-event-border-color: transparent;
+            --fc-today-bg-color: rgba(229, 57, 53, 0.05);
+            font-size: 0.95rem;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-color);
+        }
+
+        .fc .fc-button {
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            text-transform: capitalize;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        /* イベント（予定）のデザイン */
+        .fc-event {
+            cursor: pointer;
+            padding: 3px 5px;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            font-weight: 700;
+            margin-bottom: 3px !important;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .fc-event:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+        }
+
+        .fc-h-event .fc-event-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 曜日タイトルの色 */
+        .fc-day-sun .fc-col-header-cell-cushion { color: #e53935; } /* 日曜日 */
+        .fc-day-sat .fc-col-header-cell-cushion { color: #1e88e5; } /* 土曜日 */
+
+        /* 全画面ローディングオーバーレイ */
+        #loading-spinner {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #ffffff;
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .spinner {
+            width: 45px;
+            height: 45px;
+            border: 4px solid #f2f2f2;
+            border-top: 4px solid var(--brand-color);
+            border-radius: 50%;
+            animation: spin 0.85s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-weight: 700;
+            color: #555555;
+            letter-spacing: 1px;
+        }
+
+        /* モバイル対応の調整 */
+        /* カスタムモーダル */
+        #event-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #fff;
+            width: 90%;
+            max-width: 400px;
+            padding: 30px 20px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #event-modal.active { display: flex; }
+        #event-modal.active .modal-content { transform: scale(1); }
+
+        .modal-title-label {
+            font-size: 0.8rem;
+            color: var(--brand-color);
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        #modal-event-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--text-color);
+            word-wrap: break-word;
+        }
+
+        .modal-close-btn {
+            margin-top: 25px;
+            background: var(--brand-color);
+            color: #fff;
+            border: none;
+            padding: 10px 40px;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ローディング画面 -->
+    <div id="loading-spinner">
+        <div class="spinner"></div>
+        <div class="loading-text">最新の予定を読み込み中...</div>
+    </div>
+
+    <!-- ヘッダー -->
+    <header id="app-header">
+        <div class="header-logo-container">
+            <img id="team-logo" src="" alt="Team Logo">
+            <h1 class="header-title">配送カレンダー</h1>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="info-badge-container">
+            <div class="info-badge">
+                📅 <span>チームの配送予定履歴</span> をご確認いただけます
+            </div>
+        </div>
+
+        <div class="calendar-card">
+            <!-- ここにカレンダーが描画されます -->
+            <div id="calendar"></div>
+        </div>
+
+        <!-- 注文画面に戻るボタン -->
+        <div style="margin-top: 20px; text-align: center;">
+            <button onclick="goBackToOrder()" style="width: 100%; max-width: 400px; padding: 14px 20px; background: #6c757d; color: #ffffff; border: none; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                ← パン注文画面に戻る
+            </button>
+        </div>
+    </div>
+
+    <!-- 詳細表示モーダル -->
+    <div id="event-modal">
+        <div class="modal-content">
+            <span class="modal-title-label">Delivery Schedule</span>
+            <div id="modal-event-title">予定のタイトル</div>
+            <button class="modal-close-btn" onclick="closeModal()">閉じる</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * 重要：バックエンド (GAS) のエンドポイント URL
+         */
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfzj5x03xlk7hp8UATNmrryPCwtm4WVxB_8vftPnjHrmCQSbu1TFAFAGbEM20M6pMj/exec";
+
+        let currentCalendarId = null;
+        let currentTeamCode = null;
+
+        /**
+         * URLパラメータを取得するユーティリティ（liff.state, search, hash 対応）
+         */
+        function getTeamParam() {
+            var team = null;
+            function parseQuery(q) {
+                if (!q) return;
+                q = q.replace(/^[?#]/, '');
+                if (q.indexOf('?') !== -1) q = q.substring(q.indexOf('?') + 1);
+                var pairs = q.split('&');
+                for (var i = 0; i < pairs.length; i++) {
+                    var parts = pairs[i].split('=');
+                    if (parts.length === 2) {
+                        var k = decodeURIComponent(parts[0]).trim();
+                        var v = decodeURIComponent(parts[1]).trim();
+                        if (k === 'liff.state') {
+                            parseQuery(v);
+                        } else if (k === 'team' && v && v !== 'null') {
+                            team = v;
+                        }
+                    }
+                }
+            }
+            if (window.location.search) parseQuery(window.location.search);
+            if (window.location.hash) parseQuery(window.location.hash);
+            if (!team) team = localStorage.getItem('walpass_team_code');
+            return team;
+        }
+
+        function goBackToOrder() {
+            var team = currentTeamCode || getTeamParam();
+            window.location.href = 'index.html' + (team ? '?team=' + encodeURIComponent(team) : '');
+        }
+
+        /**
+         * 初期化：まずチーム設定（ロゴや色）を取得する
+         */
+        function init() {
+            const team = getTeamParam();
+            if (!team) {
+                alert("エラー：URLにチームコードが含まれていません。（?team=xxx）");
+                return;
+            }
+            currentTeamCode = team;
+            try { localStorage.setItem('walpass_team_code', team); } catch(e) {}
+
+            // JSONPでチーム設定を取得
+            const script = document.createElement('script');
+            script.src = `${GAS_WEB_APP_URL}?api=getUserTeamSettings&teamCode=${encodeURIComponent(team)}&callback=onSettingsLoaded`;
+            document.body.appendChild(script);
+        }
+
+        /**
+         * チーム設定読み込み完了時の処理
+         */
+        function onSettingsLoaded(data) {
+            if (!data || !data.calendarId) {
+                document.getElementById('loading-spinner').innerHTML = '<div style="padding:40px; text-align:center;"><h3>読込エラー</h3><p>カレンダーIDが設定されていません。<br>（スプレッドシートの「メニュー設定」シートでカレンダーIDをご確認ください）</p><button onclick="goBackToOrder()" style="margin-top:15px; padding:10px 20px; border-radius:8px; border:none; background:#888; color:#fff;">注文画面に戻る</button></div>';
+                return;
+            }
+
+            currentCalendarId = data.calendarId;
+
+            // デザインの反映
+            const brandColor = data.themeColor || '#e53935';
+            document.documentElement.style.setProperty('--brand-color', brandColor);
+            
+            if (data.logoUrl) {
+                const logo = document.getElementById('team-logo');
+                logo.src = data.logoUrl;
+                logo.style.display = 'block';
+            }
+
+            // 次にイベント（予定）データを取得
+            fetchEventsData();
+        }
+
+        /**
+         * 予定データ (Events) を取得する
+         */
+        function fetchEventsData() {
+            const script = document.createElement('script');
+            script.src = `${GAS_WEB_APP_URL}?api=getCalendarEvents&calendarId=${encodeURIComponent(currentCalendarId)}&callback=renderFullCalendar`;
+            document.body.appendChild(script);
+        }
+
+        /**
+         * FullCalendar を初期化して描画する
+         */
+        function renderFullCalendar(events) {
+            if (events && events.error) {
+                console.error("Calendar fetch error:", events.error);
+                // 詳細なエラー内容を表示するように改善
+                alert("カレンダーの読み込みに失敗しました。\n\n【詳細】: " + events.error + "\n\nプロジェクトのアクセス権限またはカレンダーIDを確認してください。");
+                document.getElementById('loading-spinner').innerHTML = '<div style="padding:40px; text-align:center; color:red;"><h3>読み込みエラー</h3><p>' + events.error + '</p></div>';
+                return;
+            }
+
+            const calendarEl = document.getElementById('calendar');
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ja',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: '' // 月/週切り替えが必要な場合はここに 'dayGridMonth,timeGridWeek' 等を追加
+                },
+                buttonText: {
+                    today: '今日'
+                },
+                // 取得したイベントデータを投入
+                events: events, 
+                
+                // タップ時に詳細を表示
+                eventClick: function(info) {
+                    showModal(info.event.title);
+                },
+
+                // デザイン・挙動の設定
+                dayMaxEvents: true, // 1日に予定が多い場合は「他X件」と表示
+                height: 'auto',
+                contentHeight: 'auto',
+                displayEventTime: false, // 終日予定が多いため、時刻は非表示
+                
+                // ウィンドウサイズ変更時の処理
+                windowResize: function(view) {
+                    if (window.innerWidth < 484) {
+                        calendar.setOption('headerToolbar', {
+                            left: 'prev,next',
+                            center: 'title',
+                            right: 'today'
+                        });
+                    }
+                }
+            });
+
+            // 描画実行
+            calendar.render();
+
+            // ローディング画面を消す
+            setTimeout(function() {
+                document.getElementById('loading-spinner').style.display = 'none';
+            }, 300);
+        }
+
+        // モーダル操作
+        function showModal(title) {
+            document.getElementById('modal-event-title').innerText = title;
+            document.getElementById('event-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('event-modal').classList.remove('active');
+        }
+
+        // モーダルの外側をクリックして閉じる
+        document.getElementById('event-modal').onclick = function(e) {
+            if (e.target.id === 'event-modal') closeModal();
+        };
+
+        // ロード時に開始
+        window.onload = init;
+    </script>
+</body>
+</html>
