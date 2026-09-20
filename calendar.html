@@ -34,10 +34,11 @@
 
         /* ヘッダーセクション */
         header {
-            background: linear-gradient(135deg, var(--brand-color), #fff);
-            padding: 15px;
+            background: linear-gradient(135deg, #00bfff 0%, #00bfff 45%, #ffffff 100%);
+            color: #0f2942;
+            padding: 12px 15px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0, 191, 255, 0.25);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -57,12 +58,11 @@
         }
 
         .header-title {
-            color: #ffffff;
+            color: #0f2942;
             margin: 0;
-            font-size: 1.3rem;
+            font-size: 1.15rem;
             font-weight: 800;
             letter-spacing: 0.5px;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .container {
@@ -389,9 +389,21 @@
 
             var settings = data.teamSettings;
             if (settings) {
-                const brandColor = settings.themeColor || '#e53935';
+                const brandColor = settings.themeColor || '#00bfff';
                 document.documentElement.style.setProperty('--brand-color', brandColor);
                 
+                var headerEl = document.getElementById('app-header');
+                if (headerEl) {
+                    if (settings.bgImageUrl) {
+                        headerEl.style.backgroundImage = 'url("' + settings.bgImageUrl + '")';
+                        headerEl.style.backgroundSize = 'cover';
+                        headerEl.style.backgroundPosition = 'center';
+                        headerEl.style.backgroundRepeat = 'no-repeat';
+                    } else if (settings.themeColor) {
+                        headerEl.style.background = settings.themeColor;
+                    }
+                }
+
                 if (settings.logoUrl) {
                     const logo = document.getElementById('team-logo');
                     logo.src = settings.logoUrl;
