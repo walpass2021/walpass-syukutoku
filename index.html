@@ -2728,84 +2728,73 @@
 
             container.innerHTML = '<div style="text-align:center; padding: 20px;"><div class="spinner" style="margin: 0 auto 10px;"></div>Please wait...</div>';
 
-            // 引数の準備
+            // ユーザー特定（LINE ID, 選択中のユーザー, ローカルストレージ, 初期ロードデータから全方位で解決）
             var storedUserId = null;
+            var storedUserName = null;
+
             try {
                 var s = JSON.parse(localStorage.getItem('walpass_bound_user') || 'null');
-                if (s) storedUserId = s.userId;
-            } catch (e) { console.error(e); }
+                if (s) {
+                    storedUserId = s.userId || null;
+                    storedUserName = s.name || s.userName || null;
+                }
+            } catch (e) { }
+
+            if (window._cachedBoundUser) {
+                storedUserId = storedUserId || window._cachedBoundUser.userId;
+                storedUserName = storedUserName || window._cachedBoundUser.name;
+            }
+
+            if (window._cachedInitialData) {
+                if (window._cachedInitialData.isBound && window._cachedInitialData.users && window._cachedInitialData.users.length > 0) {
+                    storedUserId = storedUserId || window._cachedInitialData.users[0].UserID;
+                    storedUserName = storedUserName || window._cachedInitialData.users[0].Name || window._cachedInitialData.boundUserName;
+                }
+            }
+
+            var userSelect = document.getElementById('userSelect');
+            if (userSelect && userSelect.value) {
+                storedUserId = storedUserId || userSelect.value;
+                var selOpt = userSelect.options[userSelect.selectedIndex];
+                if (selOpt && selOpt.dataset && selOpt.dataset.kanjiName) {
+                    storedUserName = storedUserName || selOpt.dataset.kanjiName;
+                }
+            }
 
             var debugLineId = (typeof lineUserId !== 'undefined' ? lineUserId : null);
-            console.log('renderHistoryView called. lineUserId:', debugLineId, 'storedUserId:', storedUserId);
+
+            // キャッシュ内にすでに履歴データがあれば即時描画
+            if (window._cachedInitialData && window._cachedInitialData.orders && window._cachedInitialData.orders.length > 0) {
+                displayHistoryOrders(window._cachedInitialData.orders, storedUserName);
+                return;
+            }
 
             var historyParams = 'api=getOrderHistory';
             if (debugLineId) historyParams += '&lineId=' + encodeURIComponent(debugLineId);
             if (storedUserId) historyParams += '&userId=' + encodeURIComponent(storedUserId);
+            if (storedUserName) historyParams += '&userName=' + encodeURIComponent(storedUserName);
 
             gasJsonpFetch(historyParams)
                 .then(function (res) {
                     try {
-                        console.log('getOrderHistory result:', JSON.stringify(res));
                         if (!res || !res.success) {
                             var msg = (res && res.message) ? res.message : "履歴データの取得に失敗しました。";
-                            container.innerHTML = '<div style="padding:20px; text-align:center; color:red;">' + msg + '</div>';
+                            container.innerHTML = '<div style="padding:30px 20px; text-align:center; color:#c53030; font-weight:bold;">' + msg + '</div>' +
+                                '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#6c757d; color:white; border:none; border-radius:10px; font-weight:bold;">注文画面へ進む</button>';
                             return;
                         }
 
                         if (!res.orders || res.orders.length === 0) {
-                            container.innerHTML = '<div style="padding:40px 20px; text-align:center; color:#888;">直近2ヶ月の注文履歴はありません。</div>';
+                            var uNameDisplay = res.userName || storedUserName || "選手";
+                            container.innerHTML = '<div style="padding:40px 20px; text-align:center; color:#666;">' +
+                                '<h3 style="font-size:1.1rem; margin-bottom:10px;">📋 ' + uNameDisplay + ' 選手の注文履歴</h3>' +
+                                '<p style="font-size:0.9rem; color:#888;">直近の注文履歴はまだありません。</p>' +
+                                '</div>' +
+                                '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:#fff; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>';
                             return;
                         }
 
-                        // 月ごとにグループ化
-                        var grouped = {};
-                        res.orders.forEach(function (ord) {
-                            var d = new Date(ord.OrderDate);
-                            var monthKey = d.getFullYear() + "年" + (d.getMonth() + 1) + "月";
-                            if (!grouped[monthKey]) grouped[monthKey] = { orders: [], totalQty: 0, totalAmount: 0 };
-                            grouped[monthKey].orders.push(ord);
-                            grouped[monthKey].totalQty += (parseInt(ord.Quantity) || 0);
-                            
-                            // 金額の加算
-                            var qty = parseInt(ord.Quantity) || 0;
-                            var price = Number(ord.Price || ord.price) || 0;
-                            grouped[monthKey].totalAmount += (qty * price);
-                        });
-
-                        var html = '<h2 style="text-align:center; font-size:1.2rem; margin-bottom:20px;">注文履歴（直近2ヶ月）</h2>';
-
-                        // 月ごとにカードを作成
-                        var months = Object.keys(grouped).sort().reverse(); // 新しい月順
-                        months.forEach(function (month) {
-                            var data = grouped[month];
-                            html += '<div class="history-card">';
-                            html += '<div class="history-month"><span>' + month + '</span><span style="font-size:0.9rem; color:#666;">' + data.orders.length + '件</span></div>';
-
-                            data.orders.forEach(function (ord) {
-                                var d = new Date(ord.OrderDate);
-                                var dateShort = (d.getMonth() + 1) + "/" + d.getDate();
-                                var qty = parseInt(ord.Quantity) || 0;
-                                var price = Number(ord.Price || ord.price) || 0;
-                                var itemAmount = qty * price;
-                                
-                                html += '<div class="history-item">';
-                                html += '<span class="history-date">' + dateShort + '</span>';
-                                html += '<span class="history-name">' + (ord.ProductName || '不明な商品') + '</span>';
-                                html += '<span class="history-qty">' + qty + '個 (¥' + itemAmount.toLocaleString() + ')</span>';
-                                html += '</div>';
-                            });
-
-                            html += '<div class="history-total-row">合計 <span class="history-total-amount">' + data.totalQty + ' 個 / ¥' + data.totalAmount.toLocaleString() + '</span></div>';
-                            html += '</div>';
-                        });
-
-                        // 戻るボタン
-                        html += '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\'; this.parentNode.querySelector(\'h2\').remove(); this.nextElementSibling.remove(); this.remove();" style="width:100%; padding:15px; background:#888; color:white; border:none; border-radius:8px; font-weight:bold; margin-top:10px; margin-bottom:10px;">注文画面に戻る</button>';
-
-                        // ログアウト（リセット）ボタン - テストや切り替え用
-                        html += '<button onclick="if(confirm(\'ログアウトしてユーザー登録を解除しますか？\')){localStorage.clear(); localStorage.setItem(\'walpass_logged_out\',\'1\'); var base=window.location.href.split(\'?\')[0]; window.location.href=base+\'?mode=register\' + (urlTeamCode ? \'&team=\'+urlTeamCode : \'\')}" style="width:100%; padding:15px; background:#e74c3c; color:white; border:none; border-radius:8px; font-weight:bold; margin-bottom:40px;">ログアウト（別の名前で登録し直す）</button>';
-
-                        container.innerHTML = html;
+                        displayHistoryOrders(res.orders, res.userName || storedUserName);
                     } catch (err) {
                         console.error(err);
                         container.innerHTML = '<div style="padding:20px; text-align:center; color:red;">表示処理中にエラーが発生しました: ' + err.message + '</div>';
@@ -2814,6 +2803,62 @@
                 .catch(function (err) {
                     container.innerHTML = '<div style="padding:20px; text-align:center; color:red;">通信エラーが発生しました: ' + err.message + '</div>';
                 });
+        }
+
+        function displayHistoryOrders(orders, userName) {
+            var container = document.getElementById('calendarContainer');
+            var grouped = {};
+
+            orders.forEach(function (ord) {
+                var dateStr = String(ord.OrderDate || ord.date || ord['日付'] || "").replace(/-/g, '/').trim();
+                var monthKey = "その他";
+                var parts = dateStr.split('/');
+                if (parts.length >= 2) {
+                    monthKey = parts[0] + "年" + parseInt(parts[1], 10) + "月";
+                }
+
+                if (!grouped[monthKey]) grouped[monthKey] = { orders: [], totalQty: 0, totalAmount: 0 };
+                grouped[monthKey].orders.push(ord);
+
+                var qty = parseInt(ord.Quantity || ord['個数'] || 1) || 0;
+                var price = Number(ord.Price || ord.price || ord['単価']) || 0;
+                grouped[monthKey].totalQty += qty;
+                grouped[monthKey].totalAmount += (qty * price);
+            });
+
+            var headerTitle = userName ? '📋 ' + userName + ' 選手の注文履歴' : '📋 注文履歴';
+            var html = '<h2 style="text-align:center; font-size:1.15rem; margin-bottom:15px; color:#0f2942;">' + headerTitle + '</h2>';
+
+            var months = Object.keys(grouped).sort().reverse();
+            months.forEach(function (month) {
+                var data = grouped[month];
+                html += '<div class="history-card" style="background:#fff; border-radius:14px; padding:15px; margin-bottom:15px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">';
+                html += '<div class="history-month" style="display:flex; justify-content:space-between; font-weight:bold; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:10px;"><span>' + month + '</span><span style="font-size:0.85rem; color:#666;">' + data.orders.length + '件</span></div>';
+
+                data.orders.forEach(function (ord) {
+                    var dateStr = String(ord.OrderDate || ord.date || ord['日付'] || "").replace(/-/g, '/').trim();
+                    var parts = dateStr.split('/');
+                    var dateShort = parts.length >= 3 ? (parseInt(parts[1], 10) + "/" + parseInt(parts[2], 10)) : dateStr;
+                    var qty = parseInt(ord.Quantity || ord['個数'] || 1) || 0;
+                    var price = Number(ord.Price || ord.price || ord['単価']) || 0;
+                    var itemAmount = qty * price;
+                    var pName = ord.ProductName || ord['商品名'] || 'パン';
+
+                    html += '<div class="history-item" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #f0f0f0; font-size:0.92rem;">';
+                    html += '<span class="history-date" style="color:#fca311; font-weight:bold; min-width:45px;">' + dateShort + '</span>';
+                    html += '<span class="history-name" style="flex:1; padding:0 8px; color:#333;">' + pName + '</span>';
+                    html += '<span class="history-qty" style="color:#0f2942; font-weight:bold;">' + qty + '個' + (itemAmount > 0 ? ' (¥' + itemAmount.toLocaleString() + ')' : '') + '</span>';
+                    html += '</div>';
+                });
+
+                html += '<div class="history-total-row" style="margin-top:10px; text-align:right; font-weight:bold; font-size:0.95rem; color:#0f2942;">合計 <span class="history-total-amount" style="color:#e53935; font-size:1.1rem; margin-left:5px;">' + data.totalQty + ' 個' + (data.totalAmount > 0 ? ' / ¥' + data.totalAmount.toLocaleString() : '') + '</span></div>';
+                html += '</div>';
+            });
+
+            // 注文画面に戻るボタン
+            html += '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; margin-top:5px; margin-bottom:15px; cursor:pointer;">パンを注文する</button>';
+
+            container.innerHTML = html;
         }
     </script>
 </body>
