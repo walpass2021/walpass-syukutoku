@@ -2331,20 +2331,43 @@
 
                 // チーム(Category/DeliveryType)ごとの設定を取得
                 var rule = null;
-                for (var rIndex = 0; rIndex < RULES.length; rIndex++) {
-                    if (RULES[rIndex].DeliveryType == deliveryType) {
-                        rule = RULES[rIndex];
-                        break;
+                var normDelType = deliveryType ? String(deliveryType).trim() : "";
+                if (Array.isArray(RULES)) {
+                    for (var rIndex = 0; rIndex < RULES.length; rIndex++) {
+                        var r = RULES[rIndex];
+                        var rDt = String(r.DeliveryType || r['配送プラン'] || r['プラン'] || r['コース'] || "").trim();
+                        if (normDelType && rDt === normDelType) {
+                            rule = r;
+                            break;
+                        }
+                    }
+                    if (!rule && RULES.length > 0) {
+                        rule = RULES[0]; // フォールバック
                     }
                 }
 
-                // "MustOrderAllDays"列
-                var mustOrderAllDays = true;
-                if (rule && rule.MustOrderAllDays !== undefined) {
-                    var valStr = String(rule.MustOrderAllDays).trim().toUpperCase();
-                    if (valStr === 'FALSE' || valStr === '0') {
-                        mustOrderAllDays = false;
+                // "MustOrderAllDays"列（全日注文必須フラグ）の判定
+                var mustOrderAllDays = false; // デフォルトはスキップ可能(false)
+                if (rule) {
+                    var rawMust = (rule.MustOrderAllDays !== undefined) ? rule.MustOrderAllDays : 
+                                 ((rule['全日程注文必須'] !== undefined) ? rule['全日程注文必須'] : 
+                                 ((rule['全日注文必須'] !== undefined) ? rule['全日注文必須'] : undefined));
+                    
+                    if (rawMust !== undefined && rawMust !== null) {
+                        var valStr = String(rawMust).trim().toUpperCase();
+                        if (valStr === 'TRUE' || valStr === '1' || valStr === '必須' || valStr === 'はい') {
+                            mustOrderAllDays = true;
+                        } else if (valStr === 'FALSE' || valStr === '0' || valStr === '不要' || valStr === 'いいえ' || valStr === '') {
+                            mustOrderAllDays = false;
+                        }
                     }
+                }
+
+                // チーム設定（メニュー設定シート）に「全日程必須」等の指定がある場合も反映
+                if (window._cachedTeamSettings && window._cachedTeamSettings.mustOrderAllDays !== undefined) {
+                    var tmVal = String(window._cachedTeamSettings.mustOrderAllDays).trim().toUpperCase();
+                    if (tmVal === 'TRUE' || tmVal === '1' || tmVal === '必須') mustOrderAllDays = true;
+                    if (tmVal === 'FALSE' || tmVal === '0' || tmVal === '不要') mustOrderAllDays = false;
                 }
 
                 // 注文データの収集
