@@ -739,101 +739,103 @@
         // 初期化
         window.onload = function () {
             try {
-                const loadingText = document.getElementById('loadingText');
-                loadingText.innerText = "初期化中...";
-
-                // 1. パラメータ取得（liff.state, search, hash, injected を完全網羅）
-                var parsed = parseAllParams();
-                urlTeamCode = parsed.team;
-                urlMode = parsed.mode;
-
-                // 2. localStorageからの復元
-                if (urlTeamCode && urlTeamCode !== "null" && urlTeamCode !== "") {
-                    localStorage.setItem('walpass_team_code', urlTeamCode);
-                } else {
-                    urlTeamCode = localStorage.getItem('walpass_team_code');
-                }
-
-                // 'null' 文字列などの正規化
-                if (urlTeamCode === 'null' || urlTeamCode === '' || urlTeamCode === 'undefined') urlTeamCode = null;
-                if (urlMode === 'null' || urlMode === '' || urlMode === 'undefined') urlMode = null;
-
-                // ★ カレンダーモードが指定されている場合は、カレンダー専用ページへ即座にリダイレクト
-                if (urlMode === 'calendar') {
-                    var calUrl = 'calendar.html' + (urlTeamCode ? '?team=' + encodeURIComponent(urlTeamCode) : '');
-                    window.location.replace(calUrl);
-                    return;
-                }
+                var loadingText = document.getElementById('loadingText');
+                if (loadingText) loadingText.innerText = "初期化中...";
 
                 // イベントリスナーの登録
-                document.getElementById('categorySelect').addEventListener('change', function () {
-                    const cat = this.value;
-                    renderUserSelect(cat);
-                    document.getElementById('calendarContainer').innerHTML = '<div style="text-align:center; padding:20px;">お名前を選択してください</div>';
-                    document.getElementById('cycleSelectArea').style.display = 'none';
-                });
+                var catEl = document.getElementById('categorySelect');
+                if (catEl) {
+                    catEl.addEventListener('change', function () {
+                        const cat = this.value;
+                        renderUserSelect(cat);
+                        document.getElementById('calendarContainer').innerHTML = '<div style="text-align:center; padding:20px;">お名前を選択してください</div>';
+                        document.getElementById('cycleSelectArea').style.display = 'none';
+                    });
+                }
 
-                document.getElementById('userSelect').addEventListener('change', function () {
-                    var bindBtn = document.getElementById('bindUserBtn');
-                    if (bindBtn) {
-                        bindBtn.disabled = !this.value;
-                        bindBtn.style.opacity = this.value ? '1' : '0.5';
-                    } else {
-                        renderCalendar();
-                        renderCycleUI();
-                    }
-                });
+                var uSelectEl = document.getElementById('userSelect');
+                if (uSelectEl) {
+                    uSelectEl.addEventListener('change', function () {
+                        var bindBtn = document.getElementById('bindUserBtn');
+                        if (bindBtn) {
+                            bindBtn.disabled = !this.value;
+                            bindBtn.style.opacity = this.value ? '1' : '0.5';
+                        } else {
+                            renderCalendar();
+                            renderCycleUI();
+                        }
+                    });
+                }
 
-                // ★ 爆速化チューニング：LIFFの解決を待たずに即座にデータ取得を並列開始
-                proceedToFetchData();
-
-                // LIFFの初期化（バックグラウンドで並列実行）
                 var targetLiffId = (typeof _gasInjectedLiffId !== "undefined" && _gasInjectedLiffId) ? _gasInjectedLiffId : "2011664893-Ei6o797M";
 
-                liff.init({
-                    liffId: targetLiffId
-                }).then(function () {
-                    try {
-                        var p2 = parseAllParams();
-                        if (!urlMode && p2.mode) urlMode = p2.mode;
-                        if (!urlTeamCode && p2.team) {
-                            urlTeamCode = p2.team;
-                            localStorage.setItem('walpass_team_code', urlTeamCode);
-                        }
+                // アプリのデータ取得を一度だけ確実に実行するラッチ
+                var appStarted = false;
+                function startApp() {
+                    if (appStarted) return;
+                    appStarted = true;
 
-                        if (urlMode === 'calendar') {
-                            var calUrl = 'calendar.html' + (urlTeamCode ? '?team=' + encodeURIComponent(urlTeamCode) : '');
-                            window.location.replace(calUrl);
-                            return;
-                        }
-                    } catch(pe) {}
-
-                    try {
-                        var ctx = liff.getContext();
-                        if (ctx && ctx.userId) {
-                            lineUserId = ctx.userId;
-                        }
-                    } catch (e) { }
-
-                    try {
-                        if (!lineUserId && liff.getDecodedIDToken) {
-                            var decoded = liff.getDecodedIDToken();
-                            if (decoded && decoded.sub) {
-                                lineUserId = decoded.sub;
-                            }
-                        }
-                    } catch (e) { }
-
-                    if (!lineUserId && liff.isLoggedIn()) {
-                        liff.getProfile().then(function (profile) {
-                            if (profile && profile.userId) {
-                                lineUserId = profile.userId;
-                            }
-                        }).catch(function () {});
+                    // パラメータ取得
+                    var parsed = parseAllParams();
+                    if (parsed.team) {
+                        urlTeamCode = parsed.team;
+                        localStorage.setItem('walpass_team_code', urlTeamCode);
                     }
-                }).catch(function (err) {
-                    console.warn("LIFF init Error (proceeding anyway):", err);
-                });
+                    if (parsed.mode) {
+                        urlMode = parsed.mode;
+                    }
+
+                    if (!urlTeamCode) urlTeamCode = localStorage.getItem('walpass_team_code');
+                    if (urlTeamCode === 'null' || urlTeamCode === '') urlTeamCode = null;
+                    if (urlMode === 'null' || urlMode === '') urlMode = null;
+
+                    // カレンダーモード時の遷移
+                    if (urlMode === 'calendar') {
+                        var calUrl = 'calendar.html' + (urlTeamCode ? '?team=' + encodeURIComponent(urlTeamCode) : '');
+                        window.location.replace(calUrl);
+                        return;
+                    }
+
+                    fetchInitialData();
+                }
+
+                // LIFF初期化の安全タイマー（最大1.5秒待機して自動起動）
+                var liffSafetyTimer = setTimeout(function () {
+                    startApp();
+                }, 1500);
+
+                if (typeof liff !== 'undefined') {
+                    liff.init({
+                        liffId: targetLiffId
+                    }).then(function () {
+                        clearTimeout(liffSafetyTimer);
+                        try {
+                            var p2 = parseAllParams();
+                            if (p2.team) {
+                                urlTeamCode = p2.team;
+                                localStorage.setItem('walpass_team_code', urlTeamCode);
+                            }
+                            if (p2.mode) urlMode = p2.mode;
+
+                            var ctx = liff.getContext();
+                            if (ctx && ctx.userId) lineUserId = ctx.userId;
+
+                            if (!lineUserId && liff.getDecodedIDToken) {
+                                var decoded = liff.getDecodedIDToken();
+                                if (decoded && decoded.sub) lineUserId = decoded.sub;
+                            }
+                        } catch(e) {}
+
+                        startApp();
+                    }).catch(function (err) {
+                        clearTimeout(liffSafetyTimer);
+                        console.warn("LIFF init Error (proceeding anyway):", err);
+                        startApp();
+                    });
+                } else {
+                    clearTimeout(liffSafetyTimer);
+                    startApp();
+                }
 
             } catch (fatalError) {
                 var loadingText = document.getElementById('loadingText');
@@ -845,26 +847,6 @@
         };
 
         function proceedToFetchData() {
-            var p = parseAllParams();
-            if (p.team) {
-                urlTeamCode = p.team;
-                localStorage.setItem('walpass_team_code', urlTeamCode);
-            }
-            if (p.mode) {
-                urlMode = p.mode;
-            }
-
-            if (urlTeamCode === 'null' || urlTeamCode === '') {
-                urlTeamCode = null;
-            }
-            if (urlMode === 'null' || urlMode === '') {
-                urlMode = null;
-            }
-
-            var loadingText = document.getElementById('loadingText');
-            if (loadingText) {
-                loadingText.innerText = "Please wait...";
-            }
             fetchInitialData();
         }
 
