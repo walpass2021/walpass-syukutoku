@@ -93,15 +93,59 @@
             box-sizing: border-box;
         }
 
+        /* 一括入力ツールバー（案2: 横並びボタン＋折りたたみ） */
+        .bulk-action-toolbar {
+            margin-bottom: 12px;
+        }
+
+        .bulk-toolbar-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .bulk-tool-btn {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 9px 8px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .bulk-tool-btn.btn-repeat {
+            background: #f0f7ff;
+            color: #0366d6;
+            border-color: #b9dafb;
+        }
+        .bulk-tool-btn.btn-repeat:active {
+            background: #dbebfa;
+        }
+
+        .bulk-tool-btn.btn-cycle {
+            background: #fdf8eb;
+            color: #b7791f;
+            border-color: #f6e05e;
+        }
+        .bulk-tool-btn.btn-cycle.active {
+            background: #fefcbf;
+            color: #975a16;
+            border-color: #ecc94b;
+        }
+
         /* サイクル選択エリア */
         .cycle-select-area {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            display: none;
-            /* ユーザーが選ばれるまで隠す */
+            background: #fdfdfd;
+            border: 1px solid #fed7aa;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 8px;
         }
 
         .cycle-select-area label {
@@ -594,17 +638,29 @@
             </select>
         </div>
 
-        <!-- サイクル自動設定エリア -->
-        <div id="cycleSelectArea" class="cycle-select-area">
-            <label style="color:#1DB446;">サイクルを自動作成（任意）</label>
-            <div class="cycle-desc">
-                順番に食べたいパンをタップしてください。選択した順番で全ての日程に自動で1個ずつ割り当てます。<br>
-                ※「追加」を選ぶことで、別のサイクルを複数回重ねて適用することも可能です。
+        <!-- 一括入力アシストツールバー（案2: 横並びボタン＋折りたたみ） -->
+        <div id="bulkActionToolbar" class="bulk-action-toolbar" style="display: none;">
+            <div class="bulk-toolbar-buttons">
+                <button type="button" id="btnRepeatLastMonth" class="bulk-tool-btn btn-repeat" onclick="applyPreviousMonthOrder()">
+                    <span>📋</span> 前月と同じにする
+                </button>
+                <button type="button" id="btnToggleCycle" class="bulk-tool-btn btn-cycle" onclick="toggleCycleArea()">
+                    <span>🔄</span> サイクル作成 <span id="cycleToggleArrow" style="font-size:0.75rem; margin-left:2px;">▼</span>
+                </button>
             </div>
-            <div id="cycleItemsContainer" class="cycle-items">
-                <!-- JSで商品タグを生成 -->
+
+            <!-- サイクル自動設定エリア（ボタンを押した時のみ展開） -->
+            <div id="cycleSelectArea" class="cycle-select-area" style="display: none;">
+                <label style="color:#1DB446; font-size: 0.9rem;">サイクルを自動作成（任意）</label>
+                <div class="cycle-desc">
+                    順番に食べたいパンをタップしてください。選択した順番で全ての日程に自動で1個ずつ割り当てます。<br>
+                    ※「追加」を選ぶことで、別のサイクルを複数回重ねて適用することも可能です。
+                </div>
+                <div id="cycleItemsContainer" class="cycle-items">
+                    <!-- JSで商品タグを生成 -->
+                </div>
+                <button type="button" class="apply-cycle-btn" onclick="applyCycle()">このサイクルで一括入力する</button>
             </div>
-            <button type="button" class="apply-cycle-btn" onclick="applyCycle()">このサイクルで一括入力する</button>
         </div>
 
         <!-- メインのカレンダー描画エリア -->
@@ -750,6 +806,8 @@
                         renderUserSelect(cat);
                         document.getElementById('calendarContainer').innerHTML = '<div style="text-align:center; padding:20px;">お名前を選択してください</div>';
                         document.getElementById('cycleSelectArea').style.display = 'none';
+                        var toolbar = document.getElementById('bulkActionToolbar');
+                        if (toolbar) toolbar.style.display = 'none';
                     });
                 }
 
@@ -1283,6 +1341,8 @@
                 // 制限中の場合はエリアを完全にクリア
                 document.getElementById('calendarContainer').innerHTML = '';
                 document.getElementById('cycleSelectArea').style.display = 'none';
+                var toolbar = document.getElementById('bulkActionToolbar');
+                if (toolbar) toolbar.style.display = 'none';
             }
         }
 
@@ -1676,6 +1736,8 @@
             // 注文部品等は隠す
             document.getElementById('calendarContainer').style.display = 'none';
             document.getElementById('cycleSelectArea').style.display = 'none';
+            var toolbar = document.getElementById('bulkActionToolbar');
+            if (toolbar) toolbar.style.display = 'none';
             document.querySelector('footer').style.display = 'none';
         }
 
@@ -1712,14 +1774,17 @@
 
             var delType = savedBUser ? (savedBUser.deliveryType || "").toString().trim() : "";
             var isRestricted = (delType && delType.indexOf('不可') !== -1);
+            var toolbar = document.getElementById('bulkActionToolbar');
 
             if (isRestricted) {
                 document.getElementById('calendarContainer').innerHTML = '<div style="text-align:center; padding:20px; color:#c53030; font-weight:bold;">現在、注文機能は制限されています。</div>';
                 document.getElementById('cycleSelectArea').style.display = 'none';
+                if (toolbar) toolbar.style.display = 'none';
                 document.querySelector('footer').style.display = 'none';
             } else {
                 document.getElementById('calendarContainer').style.display = 'block';
-                document.getElementById('cycleSelectArea').style.display = 'block';
+                document.getElementById('cycleSelectArea').style.display = 'none';
+                if (toolbar) toolbar.style.display = 'block';
                 document.querySelector('footer').style.display = 'block';
                 updateTermsVisibility();
                 renderCalendar();
@@ -1799,7 +1864,7 @@
                 option.value = user.UserID;
                 option.textContent = user.Name;
                 // DeliveryTypeとCategoryを紐づけ
-                option.dataset.deliveryType = user.DeliveryType;
+                option.dataset.deliveryType = user.DeliveryType || user['週の回数'] || user['プラン'] || user['配送プラン'] || user['コース'] || user['配送タイプ'] || '';
                 option.dataset.category = user.Category;
                 select.appendChild(option);
             });
@@ -1841,10 +1906,12 @@
 
             var userSelect = document.getElementById('userSelect');
             var selectedOption = userSelect.options[userSelect.selectedIndex];
+            var toolbar = document.getElementById('bulkActionToolbar');
 
             if (!selectedOption || !selectedOption.value) {
                 // ユーザーが選ばれていない
                 container.innerHTML = '<div style="text-align:center; padding:20px;">注文できない状態です</div>';
+                if (toolbar) toolbar.style.display = 'none';
                 return;
             }
 
@@ -1855,8 +1922,11 @@
             
             if (deliveryType && deliveryType.indexOf('不可') !== -1) {
                 container.innerHTML = '<div style="text-align:center; padding:20px; color:#c53030; font-weight:bold;">現在、注文機能は制限されています。</div>';
+                if (toolbar) toolbar.style.display = 'none';
                 return;
             }
+
+            if (toolbar) toolbar.style.display = 'block';
 
             var allowedDates = getAllowedDates(deliveryType); // ['2026/02/20', '2026/02/24'...]
 
@@ -2040,22 +2110,48 @@
             return year + '/' + month + '/' + day;
         }
 
+        // --- サイクル開閉トグル（案2: 折りたたみアコーディオン） ---
+        function toggleCycleArea() {
+            var cycleArea = document.getElementById('cycleSelectArea');
+            var arrow = document.getElementById('cycleToggleArrow');
+            var btn = document.getElementById('btnToggleCycle');
+            if (!cycleArea) return;
+
+            var isCurrentlyHidden = (cycleArea.style.display === 'none' || cycleArea.style.display === '');
+            if (isCurrentlyHidden) {
+                cycleArea.style.display = 'block';
+                if (arrow) arrow.textContent = '▲';
+                if (btn) btn.classList.add('active');
+            } else {
+                cycleArea.style.display = 'none';
+                if (arrow) arrow.textContent = '▼';
+                if (btn) btn.classList.remove('active');
+            }
+        }
+
         // --- サイクル作成UI関連 ---
         function renderCycleUI() {
             var cycleArea = document.getElementById('cycleSelectArea');
             var container = document.getElementById('cycleItemsContainer');
+            var cycleBtn = document.getElementById('btnToggleCycle');
+            var arrow = document.getElementById('cycleToggleArrow');
 
-            // チーム設定でサイクル非表示が指定されている場合は、非表示にして早期リターン
+            // チーム設定でサイクル非表示が指定されている場合は、ボタンごと非表示にして早期リターン
             var settings = window._cachedTeamSettings;
             if (settings && settings.hideCycle) {
-                cycleArea.style.display = 'none';
+                if (cycleBtn) cycleBtn.style.display = 'none';
+                if (cycleArea) cycleArea.style.display = 'none';
                 return;
+            } else {
+                if (cycleBtn) cycleBtn.style.display = 'flex';
             }
 
-            // リセット
+            // リセット（初期状態は折りたたんで非表示）
             cycleSelection = [];
             container.innerHTML = '';
-            cycleArea.style.display = 'block';
+            cycleArea.style.display = 'none';
+            if (arrow) arrow.textContent = '▼';
+            if (cycleBtn) cycleBtn.classList.remove('active');
 
             PRODUCTS.forEach(function (prod) {
                 var item = document.createElement('div');
@@ -2171,6 +2267,174 @@
                 });
 
                 showModalAsync('サイクルを適用しました！\n数や種類の微調整があれば手動で行ってください。', 'alert');
+            });
+        }
+
+        // --- 前月と同じ内容をセットする機能（案B: 配送日順マッピング） ---
+        function applyPreviousMonthOrder() {
+            var userSelect = document.getElementById('userSelect');
+            var selectedOption = userSelect.options[userSelect.selectedIndex];
+            if (!selectedOption || !selectedOption.value) {
+                showModalAsync('先にお名前を選択してください。', 'alert');
+                return;
+            }
+
+            var dayCards = document.querySelectorAll('.day-card');
+            if (dayCards.length === 0) {
+                showModalAsync('注文可能な配送日がありません。', 'alert');
+                return;
+            }
+
+            var userId = selectedOption.value;
+
+            // 履歴データ取得用関数（未キャッシュ時は取得）
+            function fetchHistoryIfNeeded() {
+                if (window._currentUserHistory && window._currentUserHistory.length > 0) {
+                    return Promise.resolve(window._currentUserHistory);
+                }
+                var loadingElem = document.getElementById('loading');
+                if (loadingElem) loadingElem.style.display = 'flex';
+                var loadingTextElem = document.getElementById('loadingText');
+                if (loadingTextElem) loadingTextElem.innerText = '過去の注文履歴を確認しています...';
+
+                var params = 'api=getOrderHistory&userId=' + encodeURIComponent(userId);
+                if (typeof lineUserId !== 'undefined' && lineUserId) {
+                    params += '&lineId=' + encodeURIComponent(lineUserId);
+                }
+
+                return gasJsonpFetch(params).then(function (res) {
+                    if (loadingElem) loadingElem.style.display = 'none';
+                    if (res && res.orders) {
+                        window._currentUserHistory = res.orders;
+                        return res.orders;
+                    }
+                    return [];
+                }).catch(function (err) {
+                    if (loadingElem) loadingElem.style.display = 'none';
+                    console.error('fetchHistory error:', err);
+                    return [];
+                });
+            }
+
+            fetchHistoryIfNeeded().then(function (historyOrders) {
+                if (!historyOrders || historyOrders.length === 0) {
+                    showModalAsync('過去の注文履歴が見つかりませんでした。\n\n初めてご注文の場合は、カレンダーまたはサイクル機能から直接ご入力ください。', 'alert');
+                    return;
+                }
+
+                // カレンダーの基準月（最初のカードの日付）
+                var firstCardDate = dayCards[0].dataset.date || ""; // YYYY/MM/DD
+                var firstCardNormalized = normalizeDateString(firstCardDate);
+                var currentCalendarYearMonth = firstCardNormalized.substring(0, 7); // "YYYY/MM"
+
+                // 過去の注文データから月（YYYY/MM）を収集
+                var pastMonthsMap = {};
+                var allMonthsMap = {};
+                historyOrders.forEach(function (h) {
+                    var dStr = normalizeDateString(h.OrderDate);
+                    if (dStr && dStr.length >= 7) {
+                        var ym = dStr.substring(0, 7);
+                        allMonthsMap[ym] = true;
+                        if (!currentCalendarYearMonth || ym < currentCalendarYearMonth) {
+                            pastMonthsMap[ym] = true;
+                        }
+                    }
+                });
+
+                // カレンダー表示月より過去の直近月、なければ全履歴中の直近月
+                var pastMonths = Object.keys(pastMonthsMap).sort();
+                var targetYearMonth = null;
+                if (pastMonths.length > 0) {
+                    targetYearMonth = pastMonths[pastMonths.length - 1];
+                } else {
+                    var allMonths = Object.keys(allMonthsMap).sort();
+                    if (allMonths.length > 0) {
+                        targetYearMonth = allMonths[allMonths.length - 1];
+                    }
+                }
+
+                if (!targetYearMonth) {
+                    showModalAsync('前月の注文履歴が見つかりませんでした。', 'alert');
+                    return;
+                }
+
+                // 対象月の注文を抽出
+                var monthOrders = historyOrders.filter(function (h) {
+                    var dStr = normalizeDateString(h.OrderDate);
+                    return dStr.indexOf(targetYearMonth) === 0;
+                });
+
+                // 配送日ごとにグループ化
+                var ordersByDate = {};
+                var prevDates = [];
+                monthOrders.forEach(function (h) {
+                    var dStr = normalizeDateString(h.OrderDate);
+                    var qty = parseInt(h.Quantity) || 0;
+                    if (qty > 0) {
+                        if (!ordersByDate[dStr]) {
+                            ordersByDate[dStr] = [];
+                            prevDates.push(dStr);
+                        }
+                        ordersByDate[dStr].push({
+                            productId: String(h.ProductID || "").trim(),
+                            productName: String(h.ProductName || "").trim(),
+                            quantity: qty
+                        });
+                    }
+                });
+
+                prevDates.sort(); // 昇順
+
+                if (prevDates.length === 0) {
+                    showModalAsync('前月（' + targetYearMonth + '）の有効な注文履歴がありませんでした。', 'alert');
+                    return;
+                }
+
+                // 表示用の月名
+                var ymParts = targetYearMonth.split('/');
+                var monthLabel = (ymParts.length === 2) ? parseInt(ymParts[1], 10) + '月度' : targetYearMonth;
+
+                var confirmMsg = '<div style="text-align:left; font-size:14px; line-height:1.6; padding:0 5px;">' +
+                                 '<strong style="font-size:15px; display:block; text-align:center; margin-bottom:10px;">前月の注文内容を反映しますか？</strong>' +
+                                 '前月（<strong>' + monthLabel + '</strong>、全<strong>' + prevDates.length + '回</strong>配送分）の注文内容を、今月のカレンダーに順番に自動入力します。<br><br>' +
+                                 '<span style="color:#e63946; font-size:12px; display:block;">※現在カレンダーに入力中の数量は上書きされます。</span>' +
+                                 '<span style="color:#666; font-size:12px; display:block;">※反映後も自由に数量の確認や微調整（＋−）が可能です。</span>' +
+                                 '</div>';
+
+                showModalAsync(confirmMsg, 'confirm').then(function (ok) {
+                    if (!ok) return;
+
+                    // 1. 全ての日カードの数量を一度0にクリア
+                    dayCards.forEach(function (card) {
+                        var inputs = card.querySelectorAll('.stepper input');
+                        inputs.forEach(function (inp) {
+                            inp.value = "0";
+                        });
+                    });
+
+                    // 2. 配送日順に前月の数量をセット（今月の方が多い場合は1回目に戻ってループ）
+                    var appliedDaysCount = 0;
+                    dayCards.forEach(function (card, index) {
+                        var pDateIndex = index % prevDates.length;
+                        var pDate = prevDates[pDateIndex];
+                        var itemsForThisDay = ordersByDate[pDate] || [];
+                        itemsForThisDay.forEach(function (item) {
+                            var targetInput = card.querySelector('input[data-product-id="' + item.productId + '"]');
+                            if (!targetInput && item.productName) {
+                                targetInput = card.querySelector('input[data-product-name="' + item.productName + '"]');
+                            }
+                            if (targetInput) {
+                                targetInput.value = item.quantity.toString();
+                            }
+                        });
+                        appliedDaysCount++;
+                    });
+
+                    var loopNote = (dayCards.length > prevDates.length) ? '（※今月の方が日数が多いため、余った日は1回目に戻って全日程を埋めています）\n' : '';
+                    var finishMsg = '前月（' + monthLabel + '）の内容を今月の全' + appliedDaysCount + '回分に反映しました！\n' + loopNote + '\n' +
+                                    '各日のパンの数量をご確認いただき、必要に応じて＋−で調整の上、一番下の【注文を確定する】ボタンを押してください。';
+                    showModalAsync(finishMsg, 'alert');
+                });
             });
         }
 
@@ -2470,11 +2734,10 @@
                 }
 
                 // ★ 選手の「週N回プラン」チェック
-                var planCheckWarning = '';
-                var dTString = (deliveryType || "").toString();
-                var planMatch = dTString.match(/週\s*([0-9０-９])/);
+                var dTString = (deliveryType || "").toString().trim();
+                var planMatch = dTString.match(/週\s*([0-9０-９]+)/) || dTString.match(/^([0-9０-９]+)\s*(?:回|日)?$/);
                 if (planMatch) {
-                    var expectedWeeklyCount = parseInt(planMatch[1].replace(/[０-９]/g, function(s) { return String.fromCharCode(s.charCodeAt(0) - 0xFEE0); }));
+                    var expectedWeeklyCount = parseInt(planMatch[1].replace(/[０-９]/g, function(s) { return String.fromCharCode(s.charCodeAt(0) - 0xFEE0); }), 10);
                     if (expectedWeeklyCount > 0) {
                         var weeklyOrders = {};
                         orders.forEach(function(o) {
@@ -2493,14 +2756,17 @@
                         var totalOrderedQty = 0;
                         orders.forEach(function(o) { totalOrderedQty += o.quantity; });
 
+                        var contactNotice = '\n\n※ご注文数を増やしたい場合やプラン変更をご希望の場合は、LINE公式アカウントのチャットまたはチーム管理者へご連絡ください。';
+
                         if (weekKeys.length <= 1) {
                             if (totalOrderedQty < expectedWeeklyCount) {
                                 var shortQty = expectedWeeklyCount - totalOrderedQty;
-                                showModalAsync('【注文個数が不足しています】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n現在選択されている注文は 合計 ' + totalOrderedQty + '個 です。\n\nあと ' + shortQty + '個 のご注文をお願いいたします。🙇‍♂️', 'alert');
+                                showModalAsync('【注文個数が不足しています】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n現在選択されている注文は 合計 ' + totalOrderedQty + '個 です。\n\nあと ' + shortQty + '個 のご注文をお願いいたします。🙇‍♂️' + contactNotice, 'alert');
                                 return;
                             } else if (totalOrderedQty > expectedWeeklyCount) {
                                 var overQty = totalOrderedQty - expectedWeeklyCount;
-                                planCheckWarning = '【注文個数のご確認】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されていますが、現在選択されている注文は 合計 ' + totalOrderedQty + '個（+' + overQty + '個）です。\n押し間違い等はございませんか？\n\n';
+                                showModalAsync('【注文数量オーバー】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n現在選択されている注文は 合計 ' + totalOrderedQty + '個（+' + overQty + '個 オーバー）です。\n\n上限を超えるご注文はできません。注文数を週' + expectedWeeklyCount + '個に合わせてください。' + contactNotice, 'alert');
+                                return;
                             }
                         } else {
                             var shortIssues = [];
@@ -2513,15 +2779,16 @@
                                     shortIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（あと ' + diff + '個 不足）');
                                 } else if (count > expectedWeeklyCount) {
                                     var diff = count - expectedWeeklyCount;
-                                    overIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（' + diff + '個 多いご注文）');
+                                    overIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（+' + diff + '個 オーバー）');
                                 }
                             });
 
                             if (shortIssues.length > 0) {
-                                showModalAsync('【注文個数が不足している週があります】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n\n' + shortIssues.join('\n') + '\n\n各週 ' + expectedWeeklyCount + '個 になるよう、追加のご注文をお願いいたします。🙇‍♂️', 'alert');
+                                showModalAsync('【注文個数が不足している週があります】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n\n' + shortIssues.join('\n') + '\n\n各週 ' + expectedWeeklyCount + '個 になるよう、追加のご注文をお願いいたします。🙇‍♂️' + contactNotice, 'alert');
                                 return;
                             } else if (overIssues.length > 0) {
-                                planCheckWarning = '【注文個数のご確認】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されていますが、以下の週で多く注文されています：\n\n' + overIssues.join('\n') + '\n\n押し間違い等はございませんか？\n\n';
+                                showModalAsync('【注文数量オーバーの週があります】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n以下の週で上限を超えています：\n\n' + overIssues.join('\n') + '\n\n上限を超えるご注文はできません。各週 ' + expectedWeeklyCount + '個 に合わせてください。' + contactNotice, 'alert');
+                                return;
                             }
                         }
                     }
@@ -2529,9 +2796,7 @@
 
                 // 日毎の個数チェック (1日に2個以上あれば警告)
                 var confirmMsg = '';
-                if (planCheckWarning) {
-                    confirmMsg = planCheckWarning + 'この内容で注文を確定しますか？';
-                } else if (applicablePrice !== null) {
+                if (applicablePrice !== null) {
                     confirmMsg = '適用単価は ' + applicablePrice + '円となります。' + avgDetailsText + '\nこの内容で注文を確定しますか？';
                 } else {
                     confirmMsg = orders.length + '件の注文を確定しますか？';
@@ -2549,8 +2814,7 @@
                         '【確認】以下の日付で複数個（2個以上）の注文があります。押し間違いがないかご確認ください：\n' :
                         '【確認】以下の日付で2個以上の注文があります：\n';
 
-                    var basePlanText = planCheckWarning ? planCheckWarning + '\n' : '';
-                    confirmMsg = basePlanText + warningTitle +
+                    confirmMsg = warningTitle +
                         multipleOrderDates.join('\n') +
                         priceText;
                 }
@@ -2738,15 +3002,31 @@
             }
         }
 
+        // --- 注文履歴画面から注文画面へ戻る共通処理 ---
+        function backToOrderFromHistory() {
+            urlMode = null;
+            localStorage.removeItem('walpass_mode');
+            renderCalendar();
+            renderCycleUI();
+            var footer = document.querySelector('footer');
+            if (footer) footer.style.display = 'block';
+            var toolbar = document.getElementById('bulkActionToolbar');
+            if (toolbar) toolbar.style.display = 'block';
+            var cycleArea = document.getElementById('cycleSelectArea');
+            if (cycleArea) cycleArea.style.display = 'none';
+        }
+
         // --- 注文履歴画面の構築（本人専用・完全プライバシー保護・超高速即時描画） ---
         function renderHistoryView() {
             var container = document.getElementById('calendarContainer');
             var footer = document.querySelector('footer');
             var cycleArea = document.getElementById('cycleSelectArea');
+            var toolbar = document.getElementById('bulkActionToolbar');
 
             // 注文用のUIを隠す
             if (footer) footer.style.display = 'none';
             if (cycleArea) cycleArea.style.display = 'none';
+            if (toolbar) toolbar.style.display = 'none';
 
             // ユーザー特定（LINE ID または 端末の連携済み情報）
             var storedUserId = null;
@@ -2783,14 +3063,14 @@
                     container.innerHTML = '<div style="padding:30px 15px; text-align:center; background:#fff; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:15px;">' +
                         '<h3 style="font-size:1.1rem; margin-top:0; color:#0f2942;">📋 ' + uNameDisplay + ' 選手の注文履歴</h3>' +
                         '<p style="font-size:0.9rem; color:#888; margin-bottom:20px;">直近の注文履歴はまだありません。</p>' +
-                        '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:#fff; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
+                        '<button onclick="backToOrderFromHistory()" style="width:100%; padding:14px; background:#fca311; color:#fff; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
                         '</div>';
                     return;
                 } else {
                     container.innerHTML = '<div style="background:#fff; border-radius:14px; padding:30px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center; margin-bottom:15px;">' +
                         '<h3 style="color:#0f2942; margin-top:0; font-size:1.1rem;">⚠️ ご利用案内</h3>' +
                         '<p style="color:#666; font-size:0.9rem; line-height:1.6; margin-bottom:20px;">ユーザー連携が確認できませんでした。<br>初回の方は、まず「パンを注文する」画面からお名前を登録してご注文ください。</p>' +
-                        '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
+                        '<button onclick="backToOrderFromHistory()" style="width:100%; padding:14px; background:#fca311; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
                         '</div>';
                     return;
                 }
@@ -2813,7 +3093,7 @@
                             container.innerHTML = '<div style="background:#fff; border-radius:14px; padding:30px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center; margin-bottom:15px;">' +
                                 '<h3 style="color:#0f2942; margin-top:0; font-size:1.1rem;">⚠️ ご利用案内</h3>' +
                                 '<p style="color:#666; font-size:0.9rem; line-height:1.6; margin-bottom:20px;">' + errMsg + '<br>初回の方は、まず「パンを注文する」画面からお名前を登録してご注文ください。</p>' +
-                                '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
+                                '<button onclick="backToOrderFromHistory()" style="width:100%; padding:14px; background:#fca311; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
                                 '</div>';
                             return;
                         }
@@ -2823,7 +3103,7 @@
                             container.innerHTML = '<div style="padding:30px 15px; text-align:center; background:#fff; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:15px;">' +
                                 '<h3 style="font-size:1.1rem; margin-top:0; color:#0f2942;">📋 ' + uNameDisplay + ' 選手の注文履歴</h3>' +
                                 '<p style="font-size:0.9rem; color:#888; margin-bottom:20px;">直近の注文履歴はまだありません。</p>' +
-                                '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:#fff; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
+                                '<button onclick="backToOrderFromHistory()" style="width:100%; padding:14px; background:#fca311; color:#fff; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">パンを注文する</button>' +
                                 '</div>';
                             return;
                         }
@@ -2890,7 +3170,7 @@
             });
 
             // 注文画面に戻るボタン
-            html += '<button onclick="urlMode=null; localStorage.removeItem(\'walpass_mode\'); renderCalendar(); renderCycleUI(); document.querySelector(\'footer\').style.display=\'block\'; document.getElementById(\'cycleSelectArea\').style.display=\'\';" style="width:100%; padding:14px; background:#fca311; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; margin-top:5px; margin-bottom:15px; cursor:pointer;">パンを注文する</button>';
+            html += '<button onclick="backToOrderFromHistory()" style="width:100%; padding:14px; background:#fca311; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; margin-top:5px; margin-bottom:15px; cursor:pointer;">パンを注文する</button>';
 
             container.innerHTML = html;
         }
