@@ -1039,10 +1039,26 @@
             }
         }
 
+        function sanitizeUserIdFront(val) {
+            if (val === undefined || val === null) return '';
+            var s = String(val).trim();
+            if (s === '' || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return '';
+            return s;
+        }
+
+        function resolveUserObjId(u) {
+            if (!u) return '';
+            return sanitizeUserIdFront(u.UserID || u.userId || u['ユーザーID'] || u['選手ID'] || u['ID']);
+        }
+
         function onDataLoaded(data) {
             console.log('Data loaded. isBound:', data.isBound, 'lineUserId:', lineUserId, 'urlMode:', urlMode, 'urlTeamCode:', urlTeamCode);
             PRODUCTS = data.products;
-            USERS = data.users;
+            USERS = (data.users || []).map(function (u) {
+                u.UserID = resolveUserObjId(u);
+                u.Name = String(u.Name || u['選手名'] || u['氏名'] || u['名前'] || u['お名前'] || '').trim();
+                return u;
+            });
             RULES = data.rules;
             window._cachedInitialData = data;
             window._isStripeTestMode = data.isStripeTestMode || false;
@@ -1120,10 +1136,11 @@
             // 1. 既に紐付け済みの場合はカレンダーまたは履歴を表示
             if (data.isBound && USERS.length > 0) {
                 var boundUser = USERS[0];
+                var resolvedBoundUid = resolveUserObjId(boundUser);
 
                 try {
                     localStorage.setItem('walpass_bound_user', JSON.stringify({
-                        userId: boundUser.UserID,
+                        userId: resolvedBoundUid,
                         userName: data.boundUserName,
                         deliveryType: boundUser.DeliveryType
                     }));
@@ -1138,10 +1155,23 @@
             if (!data.isBound && USERS.length > 0) {
                 try {
                     var savedUser = JSON.parse(localStorage.getItem('walpass_bound_user') || 'null');
-                    if (savedUser && savedUser.userId) {
+                    if (savedUser) {
+                        var cleanSavedUid = sanitizeUserIdFront(savedUser.userId);
+                        var cleanSavedName = String(savedUser.userName || savedUser.name || '').trim();
                         for (var si = 0; si < USERS.length; si++) {
-                            if (String(USERS[si].UserID) === String(savedUser.userId)) {
-                                showBoundUserView(savedUser.userName, USERS[si], data.teamSettings);
+                            var candUid = resolveUserObjId(USERS[si]);
+                            var candName = String(USERS[si].Name || '').trim();
+                            if ((cleanSavedUid && candUid && candUid === cleanSavedUid) ||
+                                (cleanSavedName && candName && candName === cleanSavedName)) {
+                                // 正しいUserIDでlocalStorageも自動修復
+                                try {
+                                    localStorage.setItem('walpass_bound_user', JSON.stringify({
+                                        userId: candUid,
+                                        userName: candName || cleanSavedName,
+                                        deliveryType: USERS[si].DeliveryType || savedUser.deliveryType || ''
+                                    }));
+                                } catch (e2) { }
+                                showBoundUserView(candName || cleanSavedName, USERS[si], data.teamSettings);
                                 document.getElementById('loading').style.display = 'none';
                                 return;
                             }
@@ -1306,7 +1336,9 @@
             if (userSelect && userObj) {
                 userSelect.innerHTML = '';
                 var opt = document.createElement('option');
-                opt.value = userObj.UserID || userObj.userId;
+                var safeUid = resolveUserObjId(userObj);
+                opt.value = safeUid || userName;
+                opt.dataset.userId = safeUid;
                 opt.textContent = userName;
                 opt.dataset.deliveryType = userObj.DeliveryType || userObj.deliveryType || userObj['プラン'] || userObj['配送プラン'] || userObj['コース'] || '';
                 opt.dataset.category = userObj.Category || userObj.category || '';
@@ -1316,7 +1348,7 @@
 
             // ★ LINE IDが取得できている場合は、Usersシートへ即座に自動登録（バックグラウンド実行）
             if (lineUserId && userObj) {
-                var targetUid = userObj.UserID || userObj.userId || '';
+                var targetUid = resolveUserObjId(userObj);
                 var bindParams = 'api=bindLineIdToUser&userId=' + encodeURIComponent(targetUid) + '&userName=' + encodeURIComponent(userName) + '&lineId=' + encodeURIComponent(lineUserId);
                 gasJsonpFetch(bindParams)
                     .then(function(bRes) {
@@ -1598,8 +1630,9 @@
                 kanaInput.oninput = updateLinkButton;
 
                 oaLinkBtn.onclick = function () {
-                    var uid = userSelect.value;
-                    var kanjiName = userSelect.options[userSelect.selectedIndex].text;
+                    var selOpt = userSelect.options[userSelect.selectedIndex];
+                    var uid = sanitizeUserIdFront(selOpt && selOpt.dataset && selOpt.dataset.userId ? selOpt.dataset.userId : userSelect.value);
+                    var kanjiName = selOpt ? selOpt.text : '';
                     var kanaName = kanaInput.value.trim();
                     var tCode = urlTeamCode || "無し";
 
@@ -1608,7 +1641,7 @@
                         localStorage.setItem('walpass_bound_user', JSON.stringify({
                             userId: uid,
                             userName: kanjiName,
-                            deliveryType: userSelect.options[userSelect.selectedIndex].dataset.deliveryType || ''
+                            deliveryType: selOpt ? (selOpt.dataset.deliveryType || '') : ''
                         }));
                     } catch (e) { }
 
@@ -1661,10 +1694,12 @@
 
                 // --- 通常モードのイベント処理 ---
                 bindBtn.onclick = function () {
-                    var uid = userSelect.value;
-                    if (!uid) { alert('お名前を選択してください'); return; }
-                    var kanjiName = userSelect.options[userSelect.selectedIndex].text;
-                    var delType = userSelect.options[userSelect.selectedIndex].dataset.deliveryType;
+                    if (!userSelect.value) { alert('お名前を選択してください'); return; }
+                    var selOpt = userSelect.options[userSelect.selectedIndex];
+                    var kanjiName = selOpt.text;
+                    var uid = sanitizeUserIdFront(selOpt.dataset.userId || userSelect.value);
+                    if (uid === kanjiName) uid = '';
+                    var delType = selOpt.dataset.deliveryType;
                     localStorage.setItem('walpass_bound_user', JSON.stringify({
                         userId: uid,
                         userName: kanjiName,
@@ -1709,7 +1744,9 @@
                         validUsers.forEach(function (u) {
                             if (String(u.Category || "").trim() === sel) {
                                 var op = document.createElement('option');
-                                op.value = u.UserID;
+                                var safeUid = resolveUserObjId(u);
+                                op.value = safeUid || u.Name;
+                                op.dataset.userId = safeUid;
                                 op.textContent = u.Name;
                                 op.dataset.deliveryType = u.DeliveryType || u.deliveryType || u['プラン'] || u['配送プラン'] || u['コース'] || '';
                                 op.dataset.category = u.Category || '';
@@ -1725,7 +1762,9 @@
                 userSelect.innerHTML = '<option value="">自分の名前を選択してください</option>';
                 validUsers.forEach(function (u) {
                     var op = document.createElement('option');
-                    op.value = u.UserID;
+                    var safeUid = resolveUserObjId(u);
+                    op.value = safeUid || u.Name;
+                    op.dataset.userId = safeUid;
                     op.textContent = u.Name;
                     op.dataset.deliveryType = u.DeliveryType || u.deliveryType || u['プラン'] || u['配送プラン'] || u['コース'] || '';
                     op.dataset.category = u.Category || '';
@@ -1750,10 +1789,15 @@
 
             var savedBUser = localStorage.getItem('walpass_bound_user') ? JSON.parse(localStorage.getItem('walpass_bound_user')) : null;
             var targetUObj = null;
-            if (savedBUser && savedBUser.userId && typeof USERS !== 'undefined') {
+            var cleanSavedUid = savedBUser ? sanitizeUserIdFront(savedBUser.userId) : '';
+            if (typeof USERS !== 'undefined') {
                 for (var ui = 0; ui < USERS.length; ui++) {
-                    if (String(USERS[ui].UserID) === String(savedBUser.userId)) {
+                    var candUid = resolveUserObjId(USERS[ui]);
+                    var candName = String(USERS[ui].Name || '').trim();
+                    if ((cleanSavedUid && candUid && candUid === cleanSavedUid) ||
+                        (userName && candName && candName === String(userName).trim())) {
                         targetUObj = USERS[ui];
+                        cleanSavedUid = candUid || cleanSavedUid;
                         break;
                     }
                 }
@@ -1762,7 +1806,7 @@
 
             // ★ LINE IDが取得できている場合は、Usersシートへ即座に自動登録（バックグラウンド実行）
             if (lineUserId && savedBUser) {
-                var bindParams = 'api=bindLineIdToUser&userId=' + encodeURIComponent(savedBUser.userId || '') + '&userName=' + encodeURIComponent(userName) + '&lineId=' + encodeURIComponent(lineUserId);
+                var bindParams = 'api=bindLineIdToUser&userId=' + encodeURIComponent(cleanSavedUid) + '&userName=' + encodeURIComponent(userName) + '&lineId=' + encodeURIComponent(lineUserId);
                 gasJsonpFetch(bindParams)
                     .then(function(bRes) {
                         console.log("Auto-bind result:", bRes);
@@ -1861,7 +1905,9 @@
 
             filteredUsers.forEach(function (user) {
                 var option = document.createElement('option');
-                option.value = user.UserID;
+                var safeUid = resolveUserObjId(user);
+                option.value = safeUid || user.Name;
+                option.dataset.userId = safeUid;
                 option.textContent = user.Name;
                 // DeliveryTypeとCategoryを紐づけ
                 option.dataset.deliveryType = user.DeliveryType || user['週の回数'] || user['プラン'] || user['配送プラン'] || user['コース'] || user['配送タイプ'] || '';
@@ -1872,10 +1918,15 @@
 
         window._currentUserHistory = [];
         var _historyLoadCounter = 0;
-        function loadUserOrderHistory(userId) {
-            if (!userId) return;
+        function loadUserOrderHistory(userId, userName) {
+            var cleanUid = sanitizeUserIdFront(userId);
+            var cleanUname = userName ? String(userName).trim() : '';
+            if (cleanUid === cleanUname) cleanUid = '';
+            if (!cleanUid && !cleanUname && !lineUserId) return;
             var currentCounter = ++_historyLoadCounter;
-            var params = 'api=getOrderHistory&userId=' + encodeURIComponent(userId);
+            var params = 'api=getOrderHistory';
+            if (cleanUid) params += '&userId=' + encodeURIComponent(cleanUid);
+            if (cleanUname) params += '&userName=' + encodeURIComponent(cleanUname);
             if (lineUserId) params += '&lineId=' + encodeURIComponent(lineUserId);
 
             gasJsonpFetch(params).then(function (res) {
@@ -1916,7 +1967,9 @@
             }
 
             // 選択されたユーザーの履歴を非同期で先読み
-            loadUserOrderHistory(selectedOption.value);
+            var selUid = sanitizeUserIdFront(selectedOption.dataset.userId || selectedOption.value);
+            var selUname = selectedOption.text || '';
+            loadUserOrderHistory(selUid, selUname);
 
             var deliveryType = (selectedOption.dataset.deliveryType || "").toString().trim();
             
@@ -2285,7 +2338,9 @@
                 return;
             }
 
-            var userId = selectedOption.value;
+            var userId = sanitizeUserIdFront(selectedOption.dataset.userId || selectedOption.value);
+            var userName = selectedOption.text || '';
+            if (userId === userName) userId = '';
 
             // 履歴データ取得用関数（未キャッシュ時は取得）
             function fetchHistoryIfNeeded() {
@@ -2297,7 +2352,9 @@
                 var loadingTextElem = document.getElementById('loadingText');
                 if (loadingTextElem) loadingTextElem.innerText = '過去の注文履歴を確認しています...';
 
-                var params = 'api=getOrderHistory&userId=' + encodeURIComponent(userId);
+                var params = 'api=getOrderHistory';
+                if (userId) params += '&userId=' + encodeURIComponent(userId);
+                if (userName) params += '&userName=' + encodeURIComponent(userName);
                 if (typeof lineUserId !== 'undefined' && lineUserId) {
                     params += '&lineId=' + encodeURIComponent(lineUserId);
                 }
@@ -2588,10 +2645,12 @@
                     return;
                 }
 
-                var userId = userSelect.value;
-                var userName = userSelect.options[userSelect.selectedIndex].text;
-                var deliveryType = userSelect.options[userSelect.selectedIndex].dataset.deliveryType;
-                var category = userSelect.options[userSelect.selectedIndex].dataset.category;
+                var selOpt = userSelect.options[userSelect.selectedIndex];
+                var userName = selOpt.text;
+                var userId = sanitizeUserIdFront(selOpt.dataset.userId || userSelect.value);
+                if (userId === userName) userId = '';
+                var deliveryType = selOpt.dataset.deliveryType;
+                var category = selOpt.dataset.category;
 
                 // チーム(Category/DeliveryType)ごとの設定を取得
                 var rule = null;
