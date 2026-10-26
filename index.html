@@ -2792,13 +2792,32 @@
                     avgDetailsText = '（合計' + totalQty + '個 ÷ 配送' + totalDeliveryDays + '日 ＝ 1日平均' + roundedAvg + '個）';
                 }
 
-                // ★ 選手の「週N回プラン」チェック
+                // ★ 選手の「週N回プラン」チェック（カレンダー表示中の全週を網羅して厳格判定）
                 var dTString = (deliveryType || "").toString().trim();
                 var planMatch = dTString.match(/週\s*([0-9０-９]+)/) || dTString.match(/^([0-9０-９]+)\s*(?:回|日)?$/);
                 if (planMatch) {
                     var expectedWeeklyCount = parseInt(planMatch[1].replace(/[０-９]/g, function(s) { return String.fromCharCode(s.charCodeAt(0) - 0xFEE0); }), 10);
                     if (expectedWeeklyCount > 0) {
-                        var weeklyOrders = {};
+                        // カレンダーに表示されているすべての「週」を把握（未入力の週も0個として確実にチェック対象にする）
+                        var calendarWeeklyOrders = {};
+                        dayCards.forEach(function (card) {
+                            var cardDateStr = card.dataset.date;
+                            if (cardDateStr) {
+                                var cd = new Date(cardDateStr.replace(/-/g, '/'));
+                                if (!isNaN(cd.getTime())) {
+                                    var cDay = cd.getDay();
+                                    var cDiff = cd.getDate() - cDay + (cDay === 0 ? -6 : 1); // 月曜日
+                                    var cMonday = new Date(cd);
+                                    cMonday.setDate(cDiff);
+                                    var cWeekKey = cMonday.getFullYear() + '/' + (cMonday.getMonth() + 1) + '/' + cMonday.getDate();
+                                    if (calendarWeeklyOrders[cWeekKey] === undefined) {
+                                        calendarWeeklyOrders[cWeekKey] = 0;
+                                    }
+                                }
+                            }
+                        });
+
+                        // 選択された注文数を各週に加算
                         orders.forEach(function(o) {
                             var d = new Date(o.date.replace(/-/g, '/'));
                             if (!isNaN(d.getTime())) {
@@ -2807,17 +2826,15 @@
                                 var monday = new Date(d);
                                 monday.setDate(diff);
                                 var weekKey = monday.getFullYear() + '/' + (monday.getMonth() + 1) + '/' + monday.getDate();
-                                weeklyOrders[weekKey] = (weeklyOrders[weekKey] || 0) + o.quantity;
+                                calendarWeeklyOrders[weekKey] = (calendarWeeklyOrders[weekKey] || 0) + o.quantity;
                             }
                         });
 
-                        var weekKeys = Object.keys(weeklyOrders);
-                        var totalOrderedQty = 0;
-                        orders.forEach(function(o) { totalOrderedQty += o.quantity; });
-
+                        var weekKeys = Object.keys(calendarWeeklyOrders).sort();
                         var contactNotice = '\n\n※ご注文数を増やしたい場合やプラン変更をご希望の場合は、LINE公式アカウントのチャットまたはチーム管理者へご連絡ください。';
 
                         if (weekKeys.length <= 1) {
+                            var totalOrderedQty = (weekKeys.length === 1) ? calendarWeeklyOrders[weekKeys[0]] : 0;
                             if (totalOrderedQty < expectedWeeklyCount) {
                                 var shortQty = expectedWeeklyCount - totalOrderedQty;
                                 showModalAsync('【注文個数が不足しています】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n現在選択されている注文は 合計 ' + totalOrderedQty + '個 です。\n\nあと ' + shortQty + '個 のご注文をお願いいたします。🙇‍♂️' + contactNotice, 'alert');
@@ -2831,19 +2848,19 @@
                             var shortIssues = [];
                             var overIssues = [];
                             weekKeys.forEach(function(wKey) {
-                                var count = weeklyOrders[wKey];
+                                var count = calendarWeeklyOrders[wKey];
                                 var shortWeek = wKey.split('/').slice(1).join('/');
                                 if (count < expectedWeeklyCount) {
                                     var diff = expectedWeeklyCount - count;
-                                    shortIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（あと ' + diff + '個 不足）');
+                                    shortIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（あと ' + diff + '個 不足 ⚠️）');
                                 } else if (count > expectedWeeklyCount) {
                                     var diff = count - expectedWeeklyCount;
-                                    overIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（+' + diff + '個 オーバー）');
+                                    overIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（+' + diff + '個 オーバー ⚠️）');
                                 }
                             });
 
                             if (shortIssues.length > 0) {
-                                showModalAsync('【注文個数が不足している週があります】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n\n' + shortIssues.join('\n') + '\n\n各週 ' + expectedWeeklyCount + '個 になるよう、追加のご注文をお願いいたします。🙇‍♂️' + contactNotice, 'alert');
+                                showModalAsync('【注文個数が不足している週があります】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\nカレンダーに表示されている全 ' + weekKeys.length + ' 週分、各週 ' + expectedWeeklyCount + '個 ずつのご注文をお願いいたします。\n\n' + shortIssues.join('\n') + '\n\n未入力または不足している週にもパンを選択してから、再度確定してください。🙇‍♂️' + contactNotice, 'alert');
                                 return;
                             } else if (overIssues.length > 0) {
                                 showModalAsync('【注文数量オーバーの週があります】\n' + userName + ' 選手は「週' + expectedWeeklyCount + '回プラン」に設定されています。\n以下の週で上限を超えています：\n\n' + overIssues.join('\n') + '\n\n上限を超えるご注文はできません。各週 ' + expectedWeeklyCount + '個 に合わせてください。' + contactNotice, 'alert');
