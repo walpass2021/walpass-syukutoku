@@ -2809,7 +2809,9 @@
                                     var cDiff = cd.getDate() - cDay + (cDay === 0 ? -6 : 1); // 月曜日
                                     var cMonday = new Date(cd);
                                     cMonday.setDate(cDiff);
-                                    var cWeekKey = cMonday.getFullYear() + '/' + (cMonday.getMonth() + 1) + '/' + cMonday.getDate();
+                                    var cM = ('0' + (cMonday.getMonth() + 1)).slice(-2);
+                                    var cD = ('0' + cMonday.getDate()).slice(-2);
+                                    var cWeekKey = cMonday.getFullYear() + '/' + cM + '/' + cD;
                                     if (calendarWeeklyOrders[cWeekKey] === undefined) {
                                         calendarWeeklyOrders[cWeekKey] = 0;
                                     }
@@ -2825,12 +2827,20 @@
                                 var diff = d.getDate() - day + (day === 0 ? -6 : 1); // 月曜日
                                 var monday = new Date(d);
                                 monday.setDate(diff);
-                                var weekKey = monday.getFullYear() + '/' + (monday.getMonth() + 1) + '/' + monday.getDate();
-                                calendarWeeklyOrders[weekKey] = (calendarWeeklyOrders[weekKey] || 0) + o.quantity;
+                                var oM = ('0' + (monday.getMonth() + 1)).slice(-2);
+                                var oD = ('0' + monday.getDate()).slice(-2);
+                                var weekKey = monday.getFullYear() + '/' + oM + '/' + oD;
+                                if (calendarWeeklyOrders[weekKey] === undefined) {
+                                    calendarWeeklyOrders[weekKey] = 0;
+                                }
+                                calendarWeeklyOrders[weekKey] += o.quantity;
                             }
                         });
 
-                        var weekKeys = Object.keys(calendarWeeklyOrders).sort();
+                        // 日付順（時系列）で確実に昇順ソート
+                        var weekKeys = Object.keys(calendarWeeklyOrders).sort(function (a, b) {
+                            return new Date(a).getTime() - new Date(b).getTime();
+                        });
                         var contactNotice = '\n\n※ご注文数を増やしたい場合やプラン変更をご希望の場合は、LINE公式アカウントのチャットまたはチーム管理者へご連絡ください。';
 
                         if (weekKeys.length <= 1) {
@@ -2849,7 +2859,8 @@
                             var overIssues = [];
                             weekKeys.forEach(function(wKey) {
                                 var count = calendarWeeklyOrders[wKey];
-                                var shortWeek = wKey.split('/').slice(1).join('/');
+                                var p = wKey.split('/');
+                                var shortWeek = parseInt(p[1], 10) + '/' + parseInt(p[2], 10);
                                 if (count < expectedWeeklyCount) {
                                     var diff = expectedWeeklyCount - count;
                                     shortIssues.push('・' + shortWeek + 'の週：現在 ' + count + '個（あと ' + diff + '個 不足 ⚠️）');
